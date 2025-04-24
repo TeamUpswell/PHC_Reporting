@@ -60,7 +60,7 @@ export default function Reports() {
           
           return {
             ...report,
-            center: {  // This should be an object, not an array
+            center: {
               name: center.name,
               area: center.area || 'Unknown',
               lga: center.lga || 'Unknown'
@@ -70,25 +70,23 @@ export default function Reports() {
 
         setReports(formattedData);
 
-        // Extract unique months for filtering
-        const uniqueMonths = [
-          ...new Set(
-            formattedData.map((report) =>
-              format(parseISO(report.report_month), "MMMM yyyy")
-            )
-          ),
-        ].sort((a, b) => {
+        // Extract unique months for filtering - FIX HERE
+        const monthSet = new Set<string>();
+        formattedData.forEach((report) => {
+          monthSet.add(format(parseISO(report.report_month), "MMMM yyyy"));
+        });
+        const uniqueMonths = Array.from(monthSet).sort((a, b) => {
           const dateA = new Date(a);
           const dateB = new Date(b);
           return dateB.getTime() - dateA.getTime(); // Sort newest first
         });
 
-        // Extract unique areas for filtering
-        const uniqueAreas = [
-          ...new Set(
-            formattedData.map((report) => report.center.area)
-          ),
-        ].sort();
+        // Extract unique areas for filtering - FIX HERE
+        const areaSet = new Set<string>();
+        formattedData.forEach((report) => {
+          areaSet.add(report.center.area);
+        });
+        const uniqueAreas = Array.from(areaSet).sort();
 
         setMonths(uniqueMonths);
         setAreas(uniqueAreas);
