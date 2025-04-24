@@ -34,7 +34,13 @@ const Map: React.FC<MapProps> = ({ centers, height = "400px" }) => {
 
   useEffect(() => {
     // Fix Leaflet's default icon path issues
-    delete L.Icon.Default.prototype._getIconUrl;
+    // Use type assertion to avoid TypeScript errors
+    const DefaultIcon = L.Icon.Default;
+    const prototype = DefaultIcon.prototype as any;
+    if (prototype._getIconUrl) {
+      delete prototype._getIconUrl;
+    }
+
     L.Icon.Default.mergeOptions({
       iconRetinaUrl:
         "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
