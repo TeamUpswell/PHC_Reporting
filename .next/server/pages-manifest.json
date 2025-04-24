@@ -2,7 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
   "/center/edit/[id]": "pages/center/edit/[id].js",
-  "/center/[id]": "pages/center/[id].js"
+  "/center/[id]": "pages/center/[id].js",
+  "/": "pages/index.js"
 }

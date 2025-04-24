@@ -95,12 +95,15 @@ export default function CenterDetail() {
   const deleteCenter = async () => {
     setDeleteLoading(true);
     try {
-      // Check if center exists
+      // Add this null check
       if (!center) {
-        throw new Error("Center not found");
+        setError("Cannot delete: center not found");
+        setShowDeleteModal(false);
+        setDeleteLoading(false);
+        return;
       }
 
-      // First delete any related reports
+      // Now center is guaranteed to exist
       const { error: reportsError } = await supabase
         .from("monthly_reports")
         .delete()
