@@ -9,6 +9,17 @@ import VaccinationChart from "../components/VaccinationChart";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 
+// Define a type for the healthcare centers
+interface HealthcareCenter {
+  id: string;
+  name: string;
+  state?: string;
+  area?: string;
+  latitude?: number;
+  longitude?: number;
+  [key: string]: any; // For any other properties
+}
+
 interface DashboardStats {
   totalCenters: number;
   totalDoses: number;
@@ -23,7 +34,8 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [centers, setCenters] = useState([]);
+  // Update the centers state with proper typing
+  const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalCenters: 0,
     totalDoses: 0,
@@ -59,7 +71,8 @@ export default function Dashboard() {
         if (reportsError) throw reportsError;
 
         if (isMounted && centersData && reportsData) {
-          setCenters(centersData);
+          // Type assertion to help TypeScript understand the type
+          setCenters(centersData as HealthcareCenter[]);
 
           // Initialize objects with proper typing
           const areaStats: Record<string, number> = {};
