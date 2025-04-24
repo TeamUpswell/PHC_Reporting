@@ -1,7 +1,7 @@
 import React from "react";
 
 // Define the allowed color values as a type
-type CardColor = "blue" | "red" | "green" | "yellow" | "purple";
+type CardColor = "blue" | "red" | "green" | "yellow" | "purple" | "teal";
 
 interface TrendInfo {
   direction: "up" | "down";
@@ -30,6 +30,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     green: "bg-green-100 text-green-800",
     yellow: "bg-yellow-100 text-yellow-800",
     purple: "bg-purple-100 text-purple-800",
+    teal: "bg-teal-100 text-teal-800",
   };
 
   const bgColor = colorMap[color as CardColor] || colorMap.blue;
