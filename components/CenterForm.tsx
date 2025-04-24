@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase, HealthcareCenter } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
+import { HealthcareCenter } from "../types"; // Updated import
 
 declare global {
   interface Window {
@@ -17,8 +18,8 @@ declare global {
 
 interface CenterFormProps {
   center?: HealthcareCenter;
-  onSave: () => void;
-  onCancel?: () => void;
+  onSave: (center: HealthcareCenter) => void;
+  onCancel: () => void;
 }
 
 const CenterForm: React.FC<CenterFormProps> = ({
@@ -134,7 +135,7 @@ const CenterForm: React.FC<CenterFormProps> = ({
         if (error) throw error;
       }
 
-      onSave();
+      onSave(formData as HealthcareCenter);
     } catch (err: any) {
       setError(err.message);
     } finally {

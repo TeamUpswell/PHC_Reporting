@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
-import { supabase, HealthcareCenter } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
+import { HealthcareCenter } from "../types"; // Updated import
 
 export default function Home() {
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);

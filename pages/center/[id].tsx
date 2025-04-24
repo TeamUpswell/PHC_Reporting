@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
+import { supabase } from "../../lib/supabase";
+import { HealthcareCenter, MonthlyReport } from "../../types"; // Updated import
 import { format, startOfMonth } from "date-fns";
-import { supabase, HealthcareCenter, MonthlyReport } from "../../lib/supabase";
 import MonthSelector from "../../components/MonthSelector";
 import MonthlyReportForm from "../../components/MonthlyReportForm";
 
@@ -12,6 +13,7 @@ export default function CenterDetail() {
   const { id } = router.query;
 
   const [center, setCenter] = useState<HealthcareCenter | null>(null);
+  const [reports, setReports] = useState<MonthlyReport[]>([]);
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

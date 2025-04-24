@@ -1,15 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
-
-interface HealthcareCenter {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  state: string; // Added state property
-  area: string; // Keep area for backwards compatibility
-  // other fields...
-}
+import { HealthcareCenter } from "../types"; // Updated import
 
 interface MapProps {
   centers: HealthcareCenter[];

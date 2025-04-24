@@ -8,17 +8,7 @@ import Map from "../components/Map";
 import VaccinationChart from "../components/VaccinationChart";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
-
-// Define a type for the healthcare centers
-interface HealthcareCenter {
-  id: string;
-  name: string;
-  state?: string;
-  area?: string;
-  latitude?: number;
-  longitude?: number;
-  [key: string]: any; // For any other properties
-}
+import { HealthcareCenter, MonthlyReport } from "../types"; // Updated import
 
 interface DashboardStats {
   totalCenters: number;

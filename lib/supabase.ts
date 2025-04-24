@@ -15,32 +15,37 @@ export type Database = {
       healthcare_centers: {
         Row: {
           id: string;
-          area: string;
           name: string;
-          lga: string;
+          state?: string; // Added state field
+          area?: string;  // Made area optional
+          lga?: string;   // Made lga optional
           address: string;
-          phone: string;
-          vaccination_days: string;
-          working_hours: string;
-          latitude: number | null;
-          longitude: number | null;
+          phone?: string;
+          vaccination_days?: string;
+          working_hours?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          [key: string]: any; // Add index signature for flexibility
         };
         Insert: {
           id?: string;
-          area: string;
           name: string;
-          lga: string;
+          state?: string;
+          area?: string;
+          lga?: string;
           address: string;
-          phone: string;
-          vaccination_days: string;
-          working_hours: string;
+          phone?: string;
+          vaccination_days?: string;
+          working_hours?: string;
           latitude?: number | null;
           longitude?: number | null;
+          [key: string]: any;
         };
         Update: {
           id?: string;
-          area?: string;
           name?: string;
+          state?: string;
+          area?: string;
           lga?: string;
           address?: string;
           phone?: string;
@@ -48,6 +53,7 @@ export type Database = {
           working_hours?: string;
           latitude?: number | null;
           longitude?: number | null;
+          [key: string]: any;
         };
       };
       monthly_reports: {

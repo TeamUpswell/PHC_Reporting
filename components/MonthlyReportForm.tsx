@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { supabase, MonthlyReport } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
+import MonthSelector from "./MonthSelector";
+import { HealthcareCenter, MonthlyReport } from "../types";
 
 interface MonthlyReportFormProps {
   centerId: string;
-  reportMonth: Date;
-  existingReport?: MonthlyReport;
-  onSaved: () => void;
+  centerName?: string;
+  onSave: () => void;
+  onCancel: () => void;
+  initialReport?: MonthlyReport;
 }
 
 const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   centerId,
-  reportMonth,
-  existingReport,
-  onSaved,
+  centerName,
+  onSave,
+  onCancel,
+  initialReport,
 }) => {
   const [formData, setFormData] = useState<Partial<MonthlyReport>>({
     center_id: centerId,
-    report_month: format(reportMonth, "yyyy-MM-dd"),
+    report_month: format(new Date(), "yyyy-MM-dd"),
     in_stock: false,
     stock_beginning: 0,
     stock_end: 0,
@@ -35,15 +39,15 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Load existing data if available
+  // Load initial data if available
   useEffect(() => {
-    if (existingReport) {
-      setFormData(existingReport);
+    if (initialReport) {
+      setFormData(initialReport);
     } else {
-      // Reset form with default values but keep the center_id and report_month
+      // Reset form with default values but keep the center_id
       setFormData({
         center_id: centerId,
-        report_month: format(reportMonth, "yyyy-MM-dd"),
+        report_month: format(new Date(), "yyyy-MM-dd"),
         in_stock: false,
         stock_beginning: 0,
         stock_end: 0,
@@ -57,15 +61,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         dhis_check: false,
       });
     }
-  }, [centerId, reportMonth, existingReport]);
-
-  // Update report month when it changes
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      report_month: format(reportMonth, "yyyy-MM-dd"),
-    }));
-  }, [reportMonth]);
+  }, [centerId, initialReport]);
 
   // Calculate total doses when fixed or outreach doses change
   useEffect(() => {
@@ -108,12 +104,12 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
           (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
       };
 
-      if (existingReport?.id) {
+      if (initialReport?.id) {
         // Update existing report
         const { error: updateError } = await supabase
           .from("monthly_reports")
           .update(reportData)
-          .eq("id", existingReport.id);
+          .eq("id", initialReport.id);
 
         if (updateError) throw updateError;
       } else {
@@ -126,7 +122,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
       }
 
       setSuccess(true);
-      onSaved();
+      onSave();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -137,7 +133,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6">
-        Monthly HPV Vaccination Report - {format(reportMonth, "MMMM yyyy")}
+        Monthly HPV Vaccination Report - {centerName || "Unknown Center"}
       </h2>
 
       {error && (
@@ -330,13 +326,20 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
       <div className="flex justify-end space-x-4 mt-6">
         <button
+          type="button"
+          onClick={onCancel}
+          className="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+          Cancel
+        </button>
+        <button
           type="submit"
           className="px-6 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           disabled={loading}
         >
           {loading
             ? "Saving..."
-            : existingReport
+            : initialReport
             ? "Update Report"
             : "Submit Report"}
         </button>

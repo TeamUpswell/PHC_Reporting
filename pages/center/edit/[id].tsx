@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
-import { supabase, HealthcareCenter } from "../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 import CenterForm from "../../../components/CenterForm";
+import { HealthcareCenter } from "../../../types";
 
 export default function EditCenter() {
   const router = useRouter();
