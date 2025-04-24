@@ -10,11 +10,17 @@ interface VaccinationChartProps {
   height?: string;
 }
 
+// Add this interface to define what chartInstance will reference
+interface ChartInstance {
+  destroy: () => void;
+}
+
 const VaccinationChart: React.FC<VaccinationChartProps> = ({
   data,
   height = "300px",
 }) => {
-  const chartInstance = useRef(null);
+  // Update the type to tell TypeScript that chartInstance will reference a ChartInstance
+  const chartInstance = useRef<ChartInstance | null>(null);
 
   useEffect(() => {
     // Chart initialization logic would go here
