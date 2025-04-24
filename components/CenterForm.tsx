@@ -28,15 +28,17 @@ const CenterForm: React.FC<CenterFormProps> = ({
   onCancel,
 }) => {
   const [formData, setFormData] = useState<Partial<HealthcareCenter>>({
-    area: "",
     name: "",
-    lga: "",
+    area: "",
     address: "",
-    phone: "",
+    state: "",
+    lga: "",
+    contact_name: "",
+    contact_phone: "",
     vaccination_days: "",
     working_hours: "",
-    latitude: null,
-    longitude: null,
+    latitude: undefined, // Changed from null to undefined
+    longitude: undefined, // Changed from null to undefined
     is_treatment_area: false,
   });
   const [loading, setLoading] = useState(false);
