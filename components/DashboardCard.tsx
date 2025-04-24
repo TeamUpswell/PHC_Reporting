@@ -1,4 +1,12 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faBuildingUser, faSyringe, faExclamationTriangle,
+  faClipboardCheck, IconDefinition
+} from "@fortawesome/free-solid-svg-icons";
+
+// Define the allowed color values as a type
+type CardColor = "blue" | "red" | "green" | "yellow" | "purple";
 
 interface TrendInfo {
   direction: "up" | "down";
@@ -7,9 +15,9 @@ interface TrendInfo {
 
 interface DashboardCardProps {
   title: string;
-  value: number | string;
-  icon?: string;
-  color?: string;
+  value: number;
+  icon: string;
+  color?: CardColor; // Use the type here
   trend?: TrendInfo;
 }
 
@@ -20,49 +28,55 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   color = "blue",
   trend,
 }) => {
-  // Map color names to Tailwind classes
-  const colorMap = {
-    blue: "bg-blue-500",
-    red: "bg-red-500",
-    green: "bg-green-500",
-    yellow: "bg-yellow-500",
-    purple: "bg-purple-500",
+  // Map for color classes
+  const colorMap: Record<CardColor, string> = {
+    blue: "bg-blue-100 text-blue-800",
+    red: "bg-red-100 text-red-800",
+    green: "bg-green-100 text-green-800",
+    yellow: "bg-yellow-100 text-yellow-800",
+    purple: "bg-purple-100 text-purple-800",
   };
 
-  const bgColor = colorMap[color] || colorMap.blue;
+  // Use type assertion to tell TypeScript that color is a valid key
+  const bgColor = colorMap[color as CardColor] || colorMap.blue;
 
   // Render the appropriate icon
   const renderIcon = () => {
-    const iconClass = `fa-${icon}`; // Assumes FontAwesome
-    return (
-      <div className={`${bgColor} p-3 rounded-full`}>
-        <i className={`fas ${iconClass} text-white`}></i>
-      </div>
-    );
+    switch (icon) {
+      case "building":
+        return faBuildingUser;
+      case "syringe":
+        return faSyringe;
+      case "exclamation-triangle":
+        return faExclamationTriangle;
+      case "clipboard-check":
+        return faClipboardCheck;
+      default:
+        return faBuildingUser;
+    }
   };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-gray-500 text-sm font-medium">{title}</h2>
-        {icon && renderIcon()}
-      </div>
-
-      <div className="flex items-baseline">
-        <p className="text-3xl font-bold">{value}</p>
-
-        {trend && (
-          <div
-            className={`ml-4 text-sm ${
-              trend.direction === "up" ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            <span className="flex items-center">
-              <i className={`fas fa-arrow-${trend.direction} mr-1`}></i>
-              {trend.percentage}
-            </span>
-          </div>
-        )}
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-lg font-medium text-gray-600">{title}</h3>
+          <div className="mt-2 text-3xl font-bold">{value.toLocaleString()}</div>
+          {trend && (
+            <div className="mt-1 flex items-center">
+              <span
+                className={`text-sm font-medium ${
+                  trend.direction === "up" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {trend.direction === "up" ? "↑" : "↓"} {trend.percentage}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded-full ${bgColor}`}>
+          <FontAwesomeIcon icon={renderIcon()} className="h-6 w-6" />
+        </div>
       </div>
     </div>
   );
