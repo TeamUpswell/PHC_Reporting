@@ -82,8 +82,16 @@ export default function Dashboard() {
 
   const { data: centersData, error: centersError } = useSWR(
     "healthcare_centers",
-    () =>
-      supabase.from("healthcare_centers").select("*").order("name").limit(200)
+    async () => {
+      const { data, error } = await supabase
+        .from("healthcare_centers")
+        .select("*")
+        .order("name")
+        .limit(200);
+
+      if (error) throw error;
+      return data || [];
+    }
   );
 
   const { data: reportsData, error: reportsError } = useSWR(
@@ -146,7 +154,7 @@ export default function Dashboard() {
           // Extract the data from centersData if it's in a Supabase response format
           const centers = Array.isArray(centersData)
             ? centersData
-            : centersData?.data || [];
+            : centersData || [];
 
           setCenters(centers as HealthcareCenter[]);
 
