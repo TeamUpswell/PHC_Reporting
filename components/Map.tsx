@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { HealthcareCenter } from "../types";
 import dynamic from "next/dynamic";
 import L from "leaflet";
@@ -16,9 +16,10 @@ const MapWithNoSSR = dynamic(() => import("./MapContainer"), {
 interface MapProps {
   centers: HealthcareCenter[];
   height?: string;
+  onCenterSelect?: (center: HealthcareCenter) => void;
 }
 
-const Map: React.FC<MapProps> = ({ centers, height = "400px" }) => {
+const Map: React.FC<MapProps> = ({ centers, height = "400px", onCenterSelect }) => {
   useEffect(() => {
     console.log("Centers passed to map:", centers);
     console.log(
