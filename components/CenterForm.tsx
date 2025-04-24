@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase, HealthcareCenter } from "../lib/supabase";
 
+declare global {
+  interface Window {
+    google: {
+      maps: {
+        places: {
+          Autocomplete: new (
+            input: HTMLInputElement
+          ) => google.maps.places.Autocomplete;
+        };
+      };
+    };
+  }
+}
+
 interface CenterFormProps {
   center?: HealthcareCenter;
   onSave: () => void;
@@ -35,23 +49,37 @@ const CenterForm: React.FC<CenterFormProps> = ({
   }, [center]);
 
   useEffect(() => {
-    if (window.google && window.google.maps && addressInputRef.current) {
-      const autocomplete = new google.maps.places.Autocomplete(
-        addressInputRef.current
-      );
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (place.geometry) {
-          setFormData((prev) => ({
-            ...prev,
-            address: place.formatted_address || prev.address,
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng(),
-          }));
-        }
-      });
+    // Skip if we're in server-side rendering
+    if (typeof window === 'undefined') return;
+    
+    // Check if Google Maps API is available
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      console.warn("Google Maps API not available. Address autocomplete disabled.");
+      return;
     }
-  }, [addressInputRef.current]);
+    
+    // Initialize autocomplete when reference is available
+    if (addressInputRef.current) {
+      try {
+        const autocomplete = new google.maps.places.Autocomplete(
+          addressInputRef.current
+        );
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (place && place.geometry && place.geometry.location) {
+            setFormData((prev) => ({
+              ...prev,
+              address: place.formatted_address || prev.address,
+              latitude: place.geometry.location.lat(),
+              longitude: place.geometry.location.lng(),
+            }));
+          }
+        });
+      } catch (err) {
+        console.error("Error initializing Google Places Autocomplete:", err);
+      }
+    }
+  }, []); // Empty dependency array to run once
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
