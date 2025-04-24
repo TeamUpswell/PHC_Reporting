@@ -5,6 +5,8 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 import { HealthcareCenter } from "../../../types";
 import CenterForm from "../../../components/CenterForm";
+import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
+import DashboardCard from "../../../components/DashboardCard";
 
 export default function EditCenter() {
   const router = useRouter();
@@ -15,6 +17,15 @@ export default function EditCenter() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [monthlyDoseData, setMonthlyDoseData] = useState<
+    Array<{ month: Date; doses: number }>
+  >([]);
+  const [stats, setStats] = useState({
+    totalCenters: 0,
+    stockoutCenters: 0,
+    recentReports: 0,
+  });
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     if (!id) return;
@@ -37,7 +48,33 @@ export default function EditCenter() {
       }
     };
 
+    const fetchReports = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("monthly_reports")
+          .select("*")
+          .eq("center_id", id);
+
+        if (error) throw error;
+
+        // Process reports data and update stats
+        if (data) {
+          calculateMonthlyDoses(data);
+
+          // Update other stats
+          setStats({
+            totalCenters: 1, // Just this center
+            stockoutCenters: data.some((r) => r.has_stockout) ? 1 : 0,
+            recentReports: data.length,
+          });
+        }
+      } catch (err: any) {
+        console.error("Error fetching reports:", err);
+      }
+    };
+
     fetchCenter();
+    fetchReports();
   }, [id]);
 
   const handleSave = async (updatedCenter: HealthcareCenter) => {
@@ -89,6 +126,39 @@ export default function EditCenter() {
     }
   };
 
+  const calculateMonthlyDoses = (
+    reportsData: Array<{ report_month: string; total_doses: number }>
+  ) => {
+    const now = new Date();
+    const monthlyDoses: Array<{ month: Date; doses: number }> = [];
+
+    // Calculate doses for the past 6 months
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = subMonths(now, i);
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+
+      // Filter reports for this month
+      const monthReports = reportsData.filter((report) => {
+        if (!report.report_month) return false;
+        const reportDate = new Date(report.report_month);
+        return reportDate >= monthStart && reportDate <= monthEnd;
+      });
+
+      // Sum doses for this month
+      const totalDoses = monthReports.reduce((sum, report) => {
+        return sum + (report.total_doses || 0);
+      }, 0);
+
+      monthlyDoses.push({
+        month: monthDate,
+        doses: totalDoses,
+      });
+    }
+
+    setMonthlyDoseData(monthlyDoses);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -118,7 +188,10 @@ export default function EditCenter() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-4">
-          <Link href={`/center/${id}`} className="text-blue-600 hover:underline">
+          <Link
+            href={`/center/${id}`}
+            className="text-blue-600 hover:underline"
+          >
             &larr; Back to Center
           </Link>
         </div>
@@ -134,14 +207,64 @@ export default function EditCenter() {
               Delete Center
             </button>
           </div>
-          
+
           {center && (
             <CenterForm
-              center={center}  // Changed from initialValues to center
+              center={center} // Changed from initialValues to center
               onSave={handleSave}
               onCancel={() => router.push(`/center/${id}`)}
             />
           )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+            {/* First row */}
+            <div className="lg:col-span-3">
+              <DashboardCard
+                title="Healthcare Centers"
+                value={stats.totalCenters}
+                icon="building"
+                color="blue"
+              />
+            </div>
+
+            <div className="lg:col-span-3">
+              <div
+                className={`bg-white rounded-lg shadow-md p-4 h-full border-t-4 border-green-500`}
+              >
+                <h2 className="text-lg font-bold mb-2">
+                  Doses Administered (Last 6 Months)
+                </h2>
+                <ul>
+                  {monthlyDoseData.map((data, index) => (
+                    <li key={index}>
+                      {format(data.month, "MMMM yyyy")}: {data.doses} doses
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3">
+              <DashboardCard
+                title={`Centers with Stockouts (${format(
+                  selectedDate,
+                  "MMMM yyyy"
+                )})`}
+                value={stats.stockoutCenters}
+                icon="exclamation-triangle"
+                color="red"
+              />
+            </div>
+
+            <div className="lg:col-span-3">
+              <DashboardCard
+                title={`Reports (${format(selectedDate, "MMMM yyyy")})`}
+                value={stats.recentReports}
+                icon="clipboard-check"
+                color="purple"
+              />
+            </div>
+          </div>
         </div>
       </main>
 
@@ -172,7 +295,7 @@ export default function EditCenter() {
           </div>
         </div>
       )}
-      
+
       <footer className="bg-blue-900 text-white text-center p-4 mt-12">
         <p>PHC Data Collection - HPV Vaccination Tracking System</p>
       </footer>

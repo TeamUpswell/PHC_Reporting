@@ -215,6 +215,20 @@ export default function CenterDetail() {
                 {center.working_hours}
               </p>
             )}
+            <div className="mt-2">
+              <p className="text-gray-700 mb-1">
+                <span className="font-medium">Treatment Area:</span>{" "}
+                <span
+                  className={
+                    center.is_treatment_area
+                      ? "text-green-600"
+                      : "text-gray-500"
+                  }
+                >
+                  {center.is_treatment_area ? "Yes" : "No"}
+                </span>
+              </p>
+            </div>
           </div>
           <div className="flex space-x-4 mt-4">
             <Link

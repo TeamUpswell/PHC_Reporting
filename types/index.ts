@@ -1,15 +1,16 @@
 export interface HealthcareCenter {
   id: string;
   name: string;
-  state?: string;
+  address: string;
   area?: string;
   lga?: string;
-  address: string;
+  state?: string;
+  coordinates?: [number, number]; // [longitude, latitude]
+  created_at?: string;
   phone?: string;
-  vaccination_days?: string;
   working_hours?: string;
-  latitude?: number | null;
-  longitude?: number | null;
+  vaccination_days?: string;
+  is_treatment_area: boolean; // Add this field
   [key: string]: any; // For any other properties
 }
 

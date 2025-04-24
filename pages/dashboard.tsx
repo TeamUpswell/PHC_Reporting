@@ -3,7 +3,14 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
-import { format, subMonths, parseISO, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import {
+  format,
+  subMonths,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+} from "date-fns";
 import Map from "../components/Map";
 import VaccinationChart from "../components/VaccinationChart";
 import DashboardCard from "../components/DashboardCard";
@@ -43,6 +50,7 @@ export default function Dashboard() {
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date()),
   });
+  const [showTreatmentAreas, setShowTreatmentAreas] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,14 +63,29 @@ export default function Dashboard() {
           .order("name");
         if (centersError) throw centersError;
 
-        const startStr = format(dateRange.start, 'yyyy-MM-dd');
-        const endStr = format(dateRange.end, 'yyyy-MM-dd');
+        const sixMonthsAgo = format(
+          subMonths(dateRange.start, 5),
+          "yyyy-MM-dd"
+        );
+        const endOfCurrentMonth = format(dateRange.end, "yyyy-MM-dd");
 
         const { data: reportsData, error: reportsError } = await supabase
           .from("monthly_reports")
           .select("*")
-          .gte('report_month', startStr)
-          .lte('report_month', endStr);
+          .gte("report_month", sixMonthsAgo)
+          .lte("report_month", endOfCurrentMonth);
+
+        console.log("Reports data from API:", reportsData);
+        console.log(
+          "Reports data structure:",
+          reportsData && reportsData.length > 0 ? reportsData[0] : "No reports"
+        );
+        console.log("Total reports:", reportsData?.length || 0);
+        console.log(
+          "Reports with dates:",
+          reportsData?.filter((r) => r.report_month).length || 0
+        );
+
         if (reportsError) throw reportsError;
 
         if (isMounted && centersData && reportsData) {
@@ -121,12 +144,29 @@ export default function Dashboard() {
 
           console.log("Monthly data for chart:", monthlyData);
 
-          const totalDoses = reportsData.reduce(
+          // Filter reports for the selected month only
+          const selectedMonthReports = reportsData.filter((report) => {
+            if (!report.report_month) return false;
+            try {
+              const reportDate = parseISO(report.report_month);
+              return (
+                format(reportDate, "yyyy-MM") ===
+                format(selectedDate, "yyyy-MM")
+              );
+            } catch (err) {
+              console.error("Error parsing date:", err);
+              return false;
+            }
+          });
+
+          // Calculate doses for the selected month
+          const totalDoses = selectedMonthReports.reduce(
             (sum, report) => sum + (report.total_doses || 0),
             0
           );
 
-          const recentReports = reportsData.length;
+          // Update recentReports to only count reports from the selected month
+          const recentReports = selectedMonthReports.length;
 
           const stockoutCenters = reportsData
             .filter(
@@ -139,6 +179,8 @@ export default function Dashboard() {
               centers.add(report.center_id);
               return centers;
             }, new Set()).size;
+
+          console.log("Original monthly data:", monthlyData);
 
           setStats({
             totalCenters: centersData.length,
@@ -174,10 +216,15 @@ export default function Dashboard() {
     console.log("Stats monthly data:", stats.monthlyData);
   }, [stats.monthlyData]);
 
-  const filteredCenters =
-    selectedState === "all"
-      ? centers
-      : centers.filter((center) => center.state === selectedState);
+  const filteredCenters = centers
+    .filter(
+      (center) => selectedState === "all" || center.state === selectedState
+    )
+    .filter((center) => !showTreatmentAreas || center.is_treatment_area);
+
+  const treatmentAreaCount = centers.filter(
+    (center) => center.is_treatment_area
+  ).length;
 
   if (loading) {
     return (
@@ -213,7 +260,7 @@ export default function Dashboard() {
           </h1>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <button 
+              <button
                 onClick={() => {
                   const newDate = subMonths(selectedDate, 1);
                   setSelectedDate(newDate);
@@ -225,16 +272,25 @@ export default function Dashboard() {
                 className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 aria-label="Previous month"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"
+                  />
                 </svg>
               </button>
-              
+
               <span className="text-lg font-medium px-2">
-                {format(selectedDate, 'MMMM yyyy')}
+                {format(selectedDate, "MMMM yyyy")}
               </span>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   const now = new Date();
                   const newDate = addMonths(selectedDate, 1);
@@ -248,18 +304,31 @@ export default function Dashboard() {
                   }
                 }}
                 className={`p-2 bg-gray-200 rounded-lg ${
-                  format(selectedDate, 'yyyy-MM') === format(new Date(), 'yyyy-MM') 
-                    ? 'opacity-50 cursor-not-allowed' 
-                    : 'hover:bg-gray-300'
+                  format(selectedDate, "yyyy-MM") ===
+                  format(new Date(), "yyyy-MM")
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-300"
                 }`}
-                disabled={format(selectedDate, 'yyyy-MM') === format(new Date(), 'yyyy-MM')}
+                disabled={
+                  format(selectedDate, "yyyy-MM") ===
+                  format(new Date(), "yyyy-MM")
+                }
                 aria-label="Next month"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
+                  />
                 </svg>
               </button>
-              
+
               <button
                 onClick={() => {
                   const now = new Date();
@@ -270,15 +339,16 @@ export default function Dashboard() {
                   });
                 }}
                 className={`ml-2 px-3 py-1 text-sm ${
-                  format(selectedDate, 'yyyy-MM') === format(new Date(), 'yyyy-MM')
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                  format(selectedDate, "yyyy-MM") ===
+                  format(new Date(), "yyyy-MM")
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                 } rounded`}
               >
                 Current Month
               </button>
             </div>
-            
+
             <Link
               href="/add-center"
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
@@ -296,19 +366,22 @@ export default function Dashboard() {
             color="blue"
           />
           <DashboardCard
-            title={`Doses Administered (${format(selectedDate, 'MMMM yyyy')})`}
+            title={`Doses Administered (${format(selectedDate, "MMMM yyyy")})`}
             value={stats.totalDoses}
             icon="syringe"
             color="green"
           />
           <DashboardCard
-            title={`Centers with Stockouts (${format(selectedDate, 'MMMM yyyy')})`}
-            value={stats.stockoutCenters}
-            icon="exclamation-triangle"
-            color="red"
+            title="Treatment Areas"
+            value={treatmentAreaCount}
+            subValue={`${Math.round(
+              (treatmentAreaCount / stats.totalCenters) * 100
+            )}% of centers`}
+            icon="clinic-medical"
+            color="teal"
           />
           <DashboardCard
-            title={`Reports (${format(selectedDate, 'MMMM yyyy')})`}
+            title={`Reports (${format(selectedDate, "MMMM yyyy")})`}
             value={stats.recentReports}
             icon="clipboard-check"
             color="purple"
@@ -320,18 +393,29 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Center Locations</h2>
-              <select
-                value={selectedState}
-                onChange={(e) => setSelectedState(e.target.value)}
-                className="px-3 py-1 border rounded"
-              >
-                <option value="all">All States</option>
-                {Object.keys(stateStats).map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center text-sm space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={showTreatmentAreas}
+                    onChange={(e) => setShowTreatmentAreas(e.target.checked)}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <span>Show treatment areas only</span>
+                </label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  className="px-3 py-1 border rounded"
+                >
+                  <option value="all">All States</option>
+                  {Object.keys(stateStats).map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <ErrorBoundary fallback={<div>Map could not be displayed</div>}>
               <Map
@@ -348,9 +432,11 @@ export default function Dashboard() {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-bold mb-4">
-                  Vaccination Doses ({format(selectedDate, 'MMMM yyyy')})
+                  Vaccination Doses ({format(selectedDate, "MMMM yyyy")})
                 </h2>
-                <ErrorBoundary fallback={<div>Chart could not be displayed</div>}>
+                <ErrorBoundary
+                  fallback={<div>Chart could not be displayed</div>}
+                >
                   <VaccinationChart data={stats.monthlyData} height="300px" />
                 </ErrorBoundary>
               </div>

@@ -93,7 +93,8 @@ export default function Home() {
               onChange={(e) => setFilterState(e.target.value)}
               className="w-full px-4 py-2 border rounded-md"
             >
-              <option value="">All States</option> {/* Changed from All Areas */}
+              <option value="">All States</option>{" "}
+              {/* Changed from All Areas */}
               {states.map((state) => (
                 <option key={state} value={state}>
                   {state}
@@ -151,7 +152,8 @@ export default function Home() {
                 <div className="p-5">
                   <h2 className="text-xl font-semibold mb-2">{center.name}</h2>
                   <p className="text-gray-600 text-sm mb-1">
-                    State: {center.state || "N/A"} {/* Changed from Area to State */}
+                    State: {center.state || "N/A"}{" "}
+                    {/* Changed from Area to State */}
                   </p>
                   <p className="text-gray-600 text-sm mb-1">
                     LGA: {center.lga || "N/A"}
@@ -164,6 +166,16 @@ export default function Home() {
                       {center.vaccination_days}
                     </p>
                   )}
+
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      center.is_treatment_area
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {center.is_treatment_area ? "Treatment Area" : "Standard"}
+                  </span>
 
                   <div className="mt-4 flex justify-between">
                     <Link

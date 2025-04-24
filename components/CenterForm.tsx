@@ -37,6 +37,7 @@ const CenterForm: React.FC<CenterFormProps> = ({
     working_hours: "",
     latitude: null,
     longitude: null,
+    is_treatment_area: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +52,16 @@ const CenterForm: React.FC<CenterFormProps> = ({
 
   useEffect(() => {
     // Skip if we're in server-side rendering
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Check if Google Maps API is available
     if (!window.google || !window.google.maps || !window.google.maps.places) {
-      console.warn("Google Maps API not available. Address autocomplete disabled.");
+      console.warn(
+        "Google Maps API not available. Address autocomplete disabled."
+      );
       return;
     }
-    
+
     // Initialize autocomplete when reference is available
     if (addressInputRef.current) {
       try {
@@ -67,23 +70,23 @@ const CenterForm: React.FC<CenterFormProps> = ({
         );
         autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace();
-          
+
           if (!place) {
             console.warn("No place selected");
             return;
           }
-          
+
           // Extract geometry safely
           const geometry = place.geometry;
           if (!geometry || !geometry.location) {
             console.warn("Place selected with incomplete location data");
             return;
           }
-          
+
           // Now these are guaranteed to be non-null
           const lat = geometry.location.lat();
           const lng = geometry.location.lng();
-          
+
           setFormData((prev) => ({
             ...prev,
             address: place.formatted_address || prev.address,
@@ -272,6 +275,27 @@ const CenterForm: React.FC<CenterFormProps> = ({
             className="w-full border rounded-lg px-3 py-2"
             step="0.000001"
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              name="is_treatment_area"
+              checked={formData.is_treatment_area || false}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  is_treatment_area: e.target.checked,
+                })
+              }
+              className="mr-2 h-5 w-5 text-blue-600"
+            />
+            <span className="text-gray-700">Treatment Area</span>
+          </label>
+          <p className="mt-1 text-sm text-gray-500">
+            Indicates if this center is in a designated treatment area
+          </p>
         </div>
       </div>
 
