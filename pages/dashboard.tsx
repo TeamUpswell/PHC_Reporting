@@ -120,7 +120,7 @@ export default function Dashboard() {
   const [stateStats, setStateStats] = useState<Record<string, number>>({});
   const [showTreatmentAreas, setShowTreatmentAreas] = useState(false);
 
-  const handleStateChange = useCallback((newState) => {
+  const handleStateChange = useCallback((newState: string) => {
     setSelectedState(newState);
   }, []);
 
