@@ -95,6 +95,11 @@ export default function CenterDetail() {
   const deleteCenter = async () => {
     setDeleteLoading(true);
     try {
+      // Check if center exists
+      if (!center) {
+        throw new Error("Center not found");
+      }
+
       // First delete any related reports
       const { error: reportsError } = await supabase
         .from("monthly_reports")
@@ -208,19 +213,13 @@ export default function CenterDetail() {
               </p>
             )}
           </div>
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 mt-4">
             <Link
               href={`/center/edit/${center.id}`}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
             >
               Edit Center
             </Link>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              Delete Center
-            </button>
           </div>
         </div>
 

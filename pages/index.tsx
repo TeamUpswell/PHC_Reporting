@@ -11,8 +11,6 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterState, setFilterState] = useState<string>(""); // Changed from filterArea
   const [states, setStates] = useState<string[]>([]); // Changed from areas
-  const [centerToDelete, setCenterToDelete] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Function to fetch all centers
   const fetchCenters = async () => {
@@ -38,35 +36,6 @@ export default function Home() {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const deleteCenterHandler = async (centerId: string) => {
-    setDeleteLoading(true);
-    try {
-      // First delete related reports
-      const { error: reportsError } = await supabase
-        .from("monthly_reports")
-        .delete()
-        .eq("center_id", centerId);
-
-      if (reportsError) throw reportsError;
-
-      // Then delete the center
-      const { error: centerError } = await supabase
-        .from("healthcare_centers")
-        .delete()
-        .eq("id", centerId);
-
-      if (centerError) throw centerError;
-
-      // Refresh the centers list
-      fetchCenters();
-      setCenterToDelete(null);
-    } catch (err: any) {
-      console.error("Error deleting center:", err);
-      setError(`Failed to delete center: ${err.message}`);
-      setDeleteLoading(false);
     }
   };
 
@@ -209,12 +178,6 @@ export default function Home() {
                     >
                       Edit Center
                     </Link>
-                    <button
-                      onClick={() => setCenterToDelete(center.id)}
-                      className="text-red-600 hover:text-red-900 focus:outline-none text-sm"
-                    >
-                      Delete
-                    </button>
                   </div>
                 </div>
               </div>
@@ -222,34 +185,6 @@ export default function Home() {
           </div>
         )}
       </main>
-
-      {/* Confirmation Modal */}
-      {centerToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-bold mb-4">Delete Healthcare Center</h3>
-            <p className="mb-6">
-              Are you sure you want to delete this center? This action cannot be undone, and all associated reports will be removed.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setCenterToDelete(null)}
-                className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
-                disabled={deleteLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteCenterHandler(centerToDelete)}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                disabled={deleteLoading}
-              >
-                {deleteLoading ? "Deleting..." : "Delete Center"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <footer className="bg-blue-900 text-white text-center p-4 mt-12">
         <p>PHC Data Collection - HPV Vaccination Tracking System</p>

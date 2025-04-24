@@ -3,7 +3,6 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/center/[id]": "pages/center/[id].js",
-  "/dashboard": "pages/dashboard.js",
-  "/add-center": "pages/add-center.js"
+  "/center/edit/[id]": "pages/center/edit/[id].js",
+  "/center/[id]": "pages/center/[id].js"
 }
