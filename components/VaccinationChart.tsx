@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import Chart from "chart.js/auto";
 
 interface ChartDataPoint {
   month: string;
@@ -21,14 +22,81 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
 }) => {
   // Update the type to tell TypeScript that chartInstance will reference a ChartInstance
   const chartInstance = useRef<ChartInstance | null>(null);
+  const chartRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    // Chart initialization logic would go here
+    if (!data || data.length === 0 || !chartRef.current) {
+      return;
+    }
+
+    // Clean up any existing chart
+    if (chartInstance.current) {
+      chartInstance.current.destroy();
+    }
+
+    const ctx = chartRef.current.getContext("2d");
     
+    if (ctx) {
+      // Create new chart
+      chartInstance.current = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map((item) => item.month),
+          datasets: [
+            {
+              label: "Vaccine Doses",
+              data: data.map((item) => item.doses),
+              backgroundColor: "rgba(59, 130, 246, 0.6)", // Blue
+              borderColor: "rgb(37, 99, 235)",
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "top",
+            },
+            title: {
+              display: false,
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `Doses: ${context.raw}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "Number of Doses",
+              },
+              ticks: {
+                precision: 0, // Only show whole numbers
+              },
+            },
+            x: {
+              title: {
+                display: true,
+                text: "Month",
+              },
+            },
+          },
+        },
+      });
+    }
+
     return () => {
       // Cleanup logic
       if (chartInstance.current) {
         chartInstance.current.destroy();
+        chartInstance.current = null;
       }
     };
   }, [data]);
@@ -44,37 +112,9 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
     );
   }
 
-  // Calculate maximum value for scaling
-  const maxValue = Math.max(...data.map((item) => item.doses));
-  const scale = maxValue > 0 ? maxValue : 1;
-
   return (
-    <div style={{ height }} className="bg-gray-100 p-4">
-      <div className="flex h-full">
-        {data.map((item) => {
-          const percentage = (item.doses / scale) * 100;
-          return (
-            <div
-              key={item.month}
-              className="flex flex-col items-center flex-1 h-full"
-            >
-              <div className="relative w-full h-full flex items-end justify-center">
-                <div
-                  className="w-3/5 bg-blue-500 rounded-t"
-                  style={{ height: `${percentage}%` }}
-                >
-                  <div className="absolute bottom-0 left-0 right-0 text-white text-xs text-center">
-                    {item.doses}
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs mt-2 font-medium text-gray-600">
-                {item.month}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div style={{ height, position: "relative" }}>
+      <canvas ref={chartRef} />
     </div>
   );
 };

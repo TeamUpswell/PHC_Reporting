@@ -8,7 +8,7 @@ import Map from "../components/Map";
 import VaccinationChart from "../components/VaccinationChart";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { HealthcareCenter, MonthlyReport } from "../types"; // Updated import
+import { HealthcareCenter, MonthlyReport } from "../types";
 
 interface DashboardStats {
   totalCenters: number;
@@ -24,7 +24,6 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const router = useRouter();
-  // Update the centers state with proper typing
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalCenters: 0,
@@ -45,47 +44,36 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Get all centers
         const { data: centersData, error: centersError } = await supabase
           .from("healthcare_centers")
           .select("*")
           .order("name");
-
         if (centersError) throw centersError;
 
-        // Get all vaccination reports
         const { data: reportsData, error: reportsError } = await supabase
-          .from("vaccination_reports")
+          .from("monthly_reports") // Look for other instances in your project where you might be using the wrong table name
           .select("*");
-
         if (reportsError) throw reportsError;
 
         if (isMounted && centersData && reportsData) {
-          // Type assertion to help TypeScript understand the type
           setCenters(centersData as HealthcareCenter[]);
 
-          // Initialize objects with proper typing
           const areaStats: Record<string, number> = {};
           const stateStats: Record<string, number> = {};
-          
-          // Process area stats
+
           centersData.forEach((center) => {
-            // Handle area stats (keeping for backward compatibility)
             if (center && center.area) {
               if (!areaStats[center.area]) {
                 areaStats[center.area] = 0;
               }
             }
-            
-            // Handle state stats
             if (center && center.state) {
               if (!stateStats[center.state]) {
                 stateStats[center.state] = 0;
               }
             }
           });
-          
-          // Add doses to areas and states
+
           reportsData.forEach((report) => {
             const center = centersData.find((c) => c.id === report.center_id);
             if (center) {
@@ -98,16 +86,16 @@ export default function Dashboard() {
             }
           });
 
-          // Calculate monthly data
           const now = new Date();
           const monthlyData = [];
           for (let i = 5; i >= 0; i--) {
             const monthStart = subMonths(now, i);
             const monthLabel = format(monthStart, "MMM");
+
             const monthDoses = reportsData
               .filter((report) => {
-                if (!report.report_date) return false;
-                const reportDate = parseISO(report.report_date);
+                if (!report.report_month) return false; // Change to report_month if that's the actual field name
+                const reportDate = parseISO(report.report_month);
                 return (
                   format(reportDate, "MMM") === monthLabel &&
                   format(reportDate, "yyyy") === format(now, "yyyy")
@@ -121,7 +109,8 @@ export default function Dashboard() {
             });
           }
 
-          // Calculate other stats
+          console.log("Monthly data for chart:", monthlyData);
+
           const totalDoses = reportsData.reduce(
             (sum, report) => sum + (report.total_doses || 0),
             0
@@ -154,8 +143,7 @@ export default function Dashboard() {
             areaStats,
             monthlyData,
           });
-          
-          // Set state stats separately
+
           setStateStats(stateStats);
         }
       } catch (err: any) {
@@ -177,15 +165,17 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Filter centers based on selected state
-  const filteredCenters = selectedState === "all"
-    ? centers
-    : centers.filter((center) => center.state === selectedState);
+  const filteredCenters =
+    selectedState === "all"
+      ? centers
+      : centers.filter((center) => center.state === selectedState);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl font-medium text-gray-600">Loading dashboard data...</div>
+        <div className="text-xl font-medium text-gray-600">
+          Loading dashboard data...
+        </div>
       </div>
     );
   }
@@ -250,71 +240,73 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-bold mb-4">Monthly Vaccination Doses</h2>
+              <h2 className="text-xl font-bold mb-4">
+                Monthly Vaccination Doses
+              </h2>
               <ErrorBoundary fallback={<div>Chart could not be displayed</div>}>
+                {console.log("Stats monthly data:", stats.monthlyData)}
+                {console.log("Passing to chart:", stats.monthlyData)}
                 <VaccinationChart data={stats.monthlyData} height="300px" />
-              </ErrorBoundary>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Center Locations</h2>
-                <select
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="px-3 py-1 border rounded"
-                >
-                  <option value="all">All States</option>
-                  {Object.keys(stateStats).map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <ErrorBoundary fallback={<div>Map could not be displayed</div>}>
-                <Map 
-                  centers={filteredCenters} 
-                  height="400px" 
-                  onCenterSelect={(id) => router.push(`/center/${id}`)}
-                />
               </ErrorBoundary>
             </div>
           </div>
 
-          <div>
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-bold mb-4">Doses by State</h2>
-              <div className="space-y-2">
-                {Object.entries(stateStats).map(([state, doses]) => (
-                  <div
-                    key={`state-${state}`}
-                    className="flex justify-between items-center"
-                  >
-                    <span>{state}</span>
-                    <span className="font-semibold">{doses} doses</span>
-                  </div>
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Center Locations</h2>
+              <select
+                value={selectedState}
+                onChange={(e) => setSelectedState(e.target.value)}
+                className="px-3 py-1 border rounded"
+              >
+                <option value="all">All States</option>
+                {Object.keys(stateStats).map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
+            <ErrorBoundary fallback={<div>Map could not be displayed</div>}>
+              <Map
+                centers={filteredCenters}
+                height="400px"
+                onCenterSelect={(id) => router.push(`/center/${id}`)}
+              />
+            </ErrorBoundary>
+          </div>
+        </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold mb-4">Quick Links</h2>
-              <div className="space-y-2">
-                <Link
-                  href="/add-center"
-                  className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                >
-                  Add New Healthcare Center
-                </Link>
-                <Link
-                  href="/"
-                  className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                >
-                  View All Centers
-                </Link>
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4">Doses by State</h2>
+          <div className="space-y-2">
+            {Object.entries(stateStats).map(([state, doses]) => (
+              <div
+                key={`state-${state}`}
+                className="flex justify-between items-center"
+              >
+                <span>{state}</span>
+                <span className="font-semibold">{doses} doses</span>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold mb-4">Quick Links</h2>
+          <div className="space-y-2">
+            <Link
+              href="/add-center"
+              className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+            >
+              Add New Healthcare Center
+            </Link>
+            <Link
+              href="/"
+              className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+            >
+              View All Centers
+            </Link>
           </div>
         </div>
       </main>
