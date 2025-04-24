@@ -67,22 +67,27 @@ const CenterForm: React.FC<CenterFormProps> = ({
         autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace();
           
-          // TypeScript needs this check to be in the same scope where properties are accessed
-          if (!place || !place.geometry || !place.geometry.location) {
-            console.warn("Place selected with incomplete data");
+          if (!place) {
+            console.warn("No place selected");
             return;
           }
           
-          // Create a typed reference that TypeScript can understand
-          const geometry = place.geometry as google.maps.places.PlaceGeometry;
-          const location = geometry.location;
+          // Extract geometry safely
+          const geometry = place.geometry;
+          if (!geometry || !geometry.location) {
+            console.warn("Place selected with incomplete location data");
+            return;
+          }
           
-          // Now use the typed references
+          // Now these are guaranteed to be non-null
+          const lat = geometry.location.lat();
+          const lng = geometry.location.lng();
+          
           setFormData((prev) => ({
             ...prev,
             address: place.formatted_address || prev.address,
-            latitude: location.lat(),
-            longitude: location.lng(),
+            latitude: lat,
+            longitude: lng,
           }));
         });
       } catch (err) {
