@@ -40,7 +40,7 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Validate centers data
+    // Validate centers data - ensure both latitude and longitude are valid numbers
     const validCenters = centers.filter(
       (center) =>
         typeof center?.latitude === "number" &&
@@ -84,7 +84,11 @@ const Map: React.FC<MapProps> = ({
         // Calculate center point of all centers
         const bounds = new google.maps.LatLngBounds();
         validCenters.forEach((center) => {
-          bounds.extend({ lat: center.latitude, lng: center.longitude });
+          // Since we filtered validCenters to ensure both lat and lng are numbers,
+          // we can now safely assert that they're non-null numbers
+          const lat = center.latitude as number;
+          const lng = center.longitude as number;
+          bounds.extend({ lat, lng });
         });
 
         // Initialize map or reuse existing
@@ -107,7 +111,10 @@ const Map: React.FC<MapProps> = ({
         // Add markers for each center
         validCenters.forEach((center) => {
           const marker = new google.maps.Marker({
-            position: { lat: center.latitude, lng: center.longitude },
+            position: { 
+              lat: center.latitude as number, 
+              lng: center.longitude as number 
+            },
             map,
             title: center.name,
           });
