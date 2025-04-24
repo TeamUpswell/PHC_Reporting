@@ -8,12 +8,14 @@ interface TrendInfo {
   percentage: string;
 }
 
+// Update the interface to include subValue
 interface DashboardCardProps {
   title: string;
   value: number;
   icon: string;
   color?: CardColor;
   trend?: TrendInfo;
+  subValue?: string; // Add this line
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
@@ -22,6 +24,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   icon,
   color = "blue",
   trend,
+  subValue, // Add this line
 }) => {
   // Map for color classes
   const colorMap: Record<CardColor, string> = {
@@ -134,6 +137,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           <div className="mt-2 text-3xl font-bold">
             {value.toLocaleString()}
           </div>
+          {subValue && ( // Add this block to render the subValue
+            <div className="mt-1 text-sm text-gray-500">{subValue}</div>
+          )}
           {trend && (
             <div className="mt-1 flex items-center">
               <span

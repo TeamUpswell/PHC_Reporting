@@ -3,6 +3,6 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/dashboard": "pages/dashboard.js",
-  "/center/[id]": "pages/center/[id].js",
-  "/center/edit/[id]": "pages/center/edit/[id].js"
+  "/center/edit/[id]": "pages/center/edit/[id].js",
+  "/center/[id]": "pages/center/[id].js"
 }
