@@ -137,7 +137,7 @@ export default function EditCenter() {
           
           {center && (
             <CenterForm
-              initialValues={center}
+              center={center}  // Changed from initialValues to center
               onSave={handleSave}
               onCancel={() => router.push(`/center/${id}`)}
             />
