@@ -165,6 +165,10 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    console.log("Stats monthly data:", stats.monthlyData);
+  }, [stats.monthlyData]);
+
   const filteredCenters =
     selectedState === "all"
       ? centers
@@ -244,8 +248,6 @@ export default function Dashboard() {
                 Monthly Vaccination Doses
               </h2>
               <ErrorBoundary fallback={<div>Chart could not be displayed</div>}>
-                {console.log("Stats monthly data:", stats.monthlyData)}
-                {console.log("Passing to chart:", stats.monthlyData)}
                 <VaccinationChart data={stats.monthlyData} height="300px" />
               </ErrorBoundary>
             </div>
