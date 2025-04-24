@@ -20,6 +20,7 @@ export default function CenterDetail() {
   const [selectedMonth, setSelectedMonth] = useState<Date>(
     startOfMonth(new Date())
   );
+  const [showReportForm, setShowReportForm] = useState(false);
 
   // Fetch center details
   useEffect(() => {
@@ -186,9 +187,10 @@ export default function CenterDetail() {
 
         <MonthlyReportForm
           centerId={center.id}
-          reportMonth={selectedMonth}
-          existingReport={report || undefined}
-          onSaved={handleReportSaved}
+          centerName={center.name}
+          onSave={handleReportSaved}
+          onCancel={() => setShowReportForm(false)}
+          initialReport={report || undefined}
         />
       </main>
 
