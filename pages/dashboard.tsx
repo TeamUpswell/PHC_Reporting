@@ -172,7 +172,7 @@ export default function Dashboard() {
           // Same for reportsData
           const reports = Array.isArray(reportsData)
             ? reportsData
-            : reportsData.data || [];
+            : reportsData || [];
 
           // After fetching reports, filter them for the selected month only:
           const selectedMonthReports = reports.filter((report) => {
