@@ -21,6 +21,8 @@ export default function CenterDetail() {
     startOfMonth(new Date())
   );
   const [showReportForm, setShowReportForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Fetch center details
   useEffect(() => {
@@ -87,6 +89,36 @@ export default function CenterDetail() {
   // After submitting a report
   const handleReportSaved = async () => {
     await fetchMonthlyReport(id as string, selectedMonth);
+  };
+
+  // Function to delete center
+  const deleteCenter = async () => {
+    setDeleteLoading(true);
+    try {
+      // First delete any related reports
+      const { error: reportsError } = await supabase
+        .from("monthly_reports")
+        .delete()
+        .eq("center_id", center.id);
+
+      if (reportsError) throw reportsError;
+
+      // Then delete the center itself
+      const { error: centerError } = await supabase
+        .from("healthcare_centers")
+        .delete()
+        .eq("id", center.id);
+
+      if (centerError) throw centerError;
+
+      // Redirect to homepage after successful deletion
+      router.push("/");
+    } catch (err: any) {
+      console.error("Error deleting center:", err);
+      setError(`Failed to delete center: ${err.message}`);
+      setShowDeleteModal(false);
+      setDeleteLoading(false);
+    }
   };
 
   if (loading && !center) {
@@ -176,6 +208,20 @@ export default function CenterDetail() {
               </p>
             )}
           </div>
+          <div className="flex space-x-4">
+            <Link
+              href={`/center/edit/${center.id}`}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
+            >
+              Edit Center
+            </Link>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Delete Center
+            </button>
+          </div>
         </div>
 
         <div className="mb-8">
@@ -193,6 +239,34 @@ export default function CenterDetail() {
           initialReport={report || undefined}
         />
       </main>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">Delete Healthcare Center</h3>
+            <p className="mb-6">
+              Are you sure you want to delete {center.name}? This action cannot
+              be undone, and all associated reports will be removed.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteCenter}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Deleting..." : "Delete Center"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="bg-blue-900 text-white text-center p-4 mt-12">
         <p>PHC Data Collection - HPV Vaccination Tracking System</p>
