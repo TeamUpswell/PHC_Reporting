@@ -146,7 +146,7 @@ export default function Dashboard() {
           // Extract the data from centersData if it's in a Supabase response format
           const centers = Array.isArray(centersData)
             ? centersData
-            : centersData.data || [];
+            : centersData?.data || [];
 
           setCenters(centers as HealthcareCenter[]);
 
