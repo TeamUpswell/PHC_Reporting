@@ -73,12 +73,16 @@ const CenterForm: React.FC<CenterFormProps> = ({
             return;
           }
           
-          // Now TypeScript knows these properties exist
+          // Create a typed reference that TypeScript can understand
+          const geometry = place.geometry as google.maps.places.PlaceGeometry;
+          const location = geometry.location;
+          
+          // Now use the typed references
           setFormData((prev) => ({
             ...prev,
             address: place.formatted_address || prev.address,
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng(),
+            latitude: location.lat(),
+            longitude: location.lng(),
           }));
         });
       } catch (err) {
