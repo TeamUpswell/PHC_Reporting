@@ -35,7 +35,7 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
     }
 
     const ctx = chartRef.current.getContext("2d");
-    
+
     if (ctx) {
       // Create new chart
       chartInstance.current = new Chart(ctx, {
@@ -64,11 +64,15 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
             },
             tooltip: {
               callbacks: {
-                label: function(context) {
-                  return `Doses: ${context.raw}`;
-                }
-              }
-            }
+                title: function (tooltipItem, data) {
+                  const dataPoint = data.datasets[0].data[tooltipItem[0].index];
+                  return dataPoint.fullLabel || tooltipItem[0].label;
+                },
+                label: function (tooltipItem, data) {
+                  return tooltipItem.value + " doses";
+                },
+              },
+            },
           },
           scales: {
             y: {

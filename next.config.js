@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+module.exports = {
   reactStrictMode: true,
-  swcMinify: true,
+  webpack: (config) => {
+    // This is to handle leaflet's CSS and image imports
+    config.module.rules.push({
+      test: /\.(png|jpg|jpeg|gif|svg|woff|woff2|eot|ttf)$/i,
+      type: "asset/resource",
+    });
+    return config;
+  },
 };
-
-module.exports = nextConfig;

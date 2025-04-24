@@ -5,12 +5,13 @@ export interface HealthcareCenter {
   area?: string;
   lga?: string;
   state?: string;
-  coordinates?: [number, number]; // [longitude, latitude]
+  latitude?: number;
+  longitude?: number;
   created_at?: string;
   phone?: string;
   working_hours?: string;
   vaccination_days?: string;
-  is_treatment_area: boolean; // Add this field
+  is_treatment_area?: boolean;
   [key: string]: any; // For any other properties
 }
 

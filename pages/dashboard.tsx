@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
+import useSWR from "swr";
 import {
   format,
   subMonths,
@@ -11,11 +12,31 @@ import {
   endOfMonth,
   addMonths,
 } from "date-fns";
-import Map from "../components/Map";
-import VaccinationChart from "../components/VaccinationChart";
+import dynamic from "next/dynamic";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { HealthcareCenter, MonthlyReport } from "../types";
+
+const VaccinationChart = dynamic(
+  () => import("../components/VaccinationChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 bg-white rounded-lg shadow-md flex items-center justify-center">
+        Loading chart...
+      </div>
+    ),
+  }
+);
+
+const Map = dynamic(() => import("../components/Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-96 bg-white rounded-lg shadow-md flex items-center justify-center">
+      Loading map...
+    </div>
+  ),
+});
 
 interface DashboardStats {
   totalCenters: number;
@@ -25,12 +46,64 @@ interface DashboardStats {
   areaStats: Record<string, number>;
   monthlyData: Array<{
     month: string;
+    fullLabel: string;
     doses: number;
   }>;
 }
 
+const DashboardSkeleton = () => (
+  <div>
+    <div className="mb-8 flex justify-between items-center">
+      <div className="h-8 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+      <div className="h-8 bg-gray-200 rounded w-1/6 animate-pulse"></div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="bg-white p-6 rounded-lg shadow-md h-32 animate-pulse"
+        >
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      ))}
+    </div>
+    <div className="h-96 bg-gray-200 rounded animate-pulse mb-8"></div>
+  </div>
+);
+
 export default function Dashboard() {
   const router = useRouter();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState({
+    start: startOfMonth(new Date()),
+    end: endOfMonth(new Date()),
+  });
+
+  const { data: centersData, error: centersError } = useSWR(
+    "healthcare_centers",
+    () =>
+      supabase.from("healthcare_centers").select("*").order("name").limit(200)
+  );
+
+  const { data: reportsData, error: reportsError } = useSWR(
+    [`monthly_reports`, dateRange],
+    async () => {
+      const sixMonthsAgo = format(subMonths(dateRange.start, 5), "yyyy-MM-dd");
+      const endOfCurrentMonth = format(dateRange.end, "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("monthly_reports")
+        .select("*")
+        .gte("report_month", sixMonthsAgo)
+        .lte("report_month", endOfCurrentMonth)
+        .limit(500);
+
+      if (error) throw error;
+      return data;
+    }
+  );
+
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalCenters: 0,
@@ -45,36 +118,17 @@ export default function Dashboard() {
   const [selectedArea, setSelectedArea] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
   const [stateStats, setStateStats] = useState<Record<string, number>>({});
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [dateRange, setDateRange] = useState({
-    start: startOfMonth(new Date()),
-    end: endOfMonth(new Date()),
-  });
   const [showTreatmentAreas, setShowTreatmentAreas] = useState(false);
+
+  const handleStateChange = useCallback((newState) => {
+    setSelectedState(newState);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
       setLoading(true);
       try {
-        const { data: centersData, error: centersError } = await supabase
-          .from("healthcare_centers")
-          .select("*")
-          .order("name");
-        if (centersError) throw centersError;
-
-        const sixMonthsAgo = format(
-          subMonths(dateRange.start, 5),
-          "yyyy-MM-dd"
-        );
-        const endOfCurrentMonth = format(dateRange.end, "yyyy-MM-dd");
-
-        const { data: reportsData, error: reportsError } = await supabase
-          .from("monthly_reports")
-          .select("*")
-          .gte("report_month", sixMonthsAgo)
-          .lte("report_month", endOfCurrentMonth);
-
         console.log("Reports data from API:", reportsData);
         console.log(
           "Reports data structure:",
@@ -89,17 +143,47 @@ export default function Dashboard() {
         if (reportsError) throw reportsError;
 
         if (isMounted && centersData && reportsData) {
-          setCenters(centersData as HealthcareCenter[]);
+          // Extract the data from centersData if it's in a Supabase response format
+          const centers = Array.isArray(centersData)
+            ? centersData
+            : centersData.data || [];
+
+          setCenters(centers as HealthcareCenter[]);
 
           const areaStats: Record<string, number> = {};
-          const stateStats: Record<string, number> = {};
 
-          centersData.forEach((center) => {
+          // Make sure we're iterating over the array
+          centers.forEach((center) => {
             if (center && center.area) {
               if (!areaStats[center.area]) {
                 areaStats[center.area] = 0;
               }
             }
+          });
+
+          // Same for reportsData
+          const reports = Array.isArray(reportsData)
+            ? reportsData
+            : reportsData.data || [];
+
+          // After fetching reports, filter them for the selected month only:
+          const selectedMonthReports = reports.filter((report) => {
+            if (!report.report_month) return false;
+            try {
+              const reportDate = parseISO(report.report_month);
+              return (
+                format(reportDate, "yyyy-MM") ===
+                format(selectedDate, "yyyy-MM")
+              );
+            } catch (err) {
+              console.error("Error parsing date:", err);
+              return false;
+            }
+          });
+
+          // Initialize stateStats with zeroes for all states
+          const stateStats: Record<string, number> = {};
+          centers.forEach((center) => {
             if (center && center.state) {
               if (!stateStats[center.state]) {
                 stateStats[center.state] = 0;
@@ -107,37 +191,58 @@ export default function Dashboard() {
             }
           });
 
-          reportsData.forEach((report) => {
-            const center = centersData.find((c) => c.id === report.center_id);
+          // Then calculate state stats using ONLY the selected month reports
+          selectedMonthReports.forEach((report) => {
+            const center = centers.find((c) => c.id === report.center_id);
             if (center) {
-              if (center.area && report.total_doses) {
-                areaStats[center.area] += report.total_doses;
-              }
               if (center.state && report.total_doses) {
                 stateStats[center.state] += report.total_doses;
               }
             }
           });
 
+          reports.forEach((report) => {
+            const center = centers.find((c) => c.id === report.center_id);
+            if (center) {
+              if (center.area && report.total_doses) {
+                areaStats[center.area] += report.total_doses;
+              }
+            }
+          });
+
           const now = new Date();
           const monthlyData = [];
-          for (let i = 5; i >= 0; i--) {
-            const monthStart = subMonths(now, i);
-            const monthLabel = format(monthStart, "MMM");
 
-            const monthDoses = reportsData
+          // Get the current year and month
+          const currentYear = format(now, "yyyy");
+          const currentMonth = parseInt(format(now, "M"), 10);
+
+          // Generate data for the past 6 months
+          for (let i = 5; i >= 0; i--) {
+            const targetDate = subMonths(now, i);
+            const targetYear = format(targetDate, "yyyy");
+            const targetMonth = format(targetDate, "MMM");
+            const fullLabel = format(targetDate, "MMM yyyy");
+
+            // Filter reports for this specific year AND month
+            const monthDoses = reports
               .filter((report) => {
                 if (!report.report_month) return false;
-                const reportDate = parseISO(report.report_month);
-                return (
-                  format(reportDate, "MMM") === monthLabel &&
-                  format(reportDate, "yyyy") === format(now, "yyyy")
-                );
+                try {
+                  const reportDate = parseISO(report.report_month);
+                  return (
+                    format(reportDate, "yyyy") === targetYear &&
+                    format(reportDate, "MMM") === targetMonth
+                  );
+                } catch (err) {
+                  return false;
+                }
               })
               .reduce((sum, report) => sum + (report.total_doses || 0), 0);
 
             monthlyData.push({
-              month: monthLabel,
+              month: targetMonth, // Keep the short month label for display
+              fullLabel: fullLabel, // Add full month+year for tooltips
               doses: monthDoses,
             });
           }
@@ -145,7 +250,7 @@ export default function Dashboard() {
           console.log("Monthly data for chart:", monthlyData);
 
           // Filter reports for the selected month only
-          const selectedMonthReports = reportsData.filter((report) => {
+          const selectedMonthReportsForStats = reports.filter((report) => {
             if (!report.report_month) return false;
             try {
               const reportDate = parseISO(report.report_month);
@@ -160,15 +265,15 @@ export default function Dashboard() {
           });
 
           // Calculate doses for the selected month
-          const totalDoses = selectedMonthReports.reduce(
+          const totalDoses = selectedMonthReportsForStats.reduce(
             (sum, report) => sum + (report.total_doses || 0),
             0
           );
 
           // Update recentReports to only count reports from the selected month
-          const recentReports = selectedMonthReports.length;
+          const recentReports = selectedMonthReportsForStats.length;
 
-          const stockoutCenters = reportsData
+          const stockoutCenters = reports
             .filter(
               (report) =>
                 report.has_stockout === true &&
@@ -183,7 +288,7 @@ export default function Dashboard() {
           console.log("Original monthly data:", monthlyData);
 
           setStats({
-            totalCenters: centersData.length,
+            totalCenters: centers.length,
             totalDoses,
             stockoutCenters,
             recentReports,
@@ -210,31 +315,27 @@ export default function Dashboard() {
     return () => {
       isMounted = false;
     };
-  }, [dateRange]);
+  }, [dateRange, reportsData, reportsError]);
 
   useEffect(() => {
     console.log("Stats monthly data:", stats.monthlyData);
   }, [stats.monthlyData]);
 
-  const filteredCenters = centers
-    .filter(
-      (center) => selectedState === "all" || center.state === selectedState
-    )
-    .filter((center) => !showTreatmentAreas || center.is_treatment_area);
+  const filteredCenters = useMemo(() => {
+    if (!centers || !Array.isArray(centers)) {
+      return [];
+    }
 
-  const treatmentAreaCount = centers.filter(
-    (center) => center.is_treatment_area
-  ).length;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl font-medium text-gray-600">
-          Loading dashboard data...
-        </div>
-      </div>
+    return centers.filter(
+      (center) =>
+        (selectedState === "all" || center.state === selectedState) &&
+        (!showTreatmentAreas || center.is_treatment_area)
     );
-  }
+  }, [centers, selectedState, showTreatmentAreas]);
+
+  const treatmentAreaCount = Array.isArray(centers)
+    ? centers.filter((center) => center.is_treatment_area).length
+    : 0;
 
   if (error) {
     return (
@@ -249,244 +350,222 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Head>
-        <title>Dashboard - PHC Data Collection</title>
-      </Head>
-
       <main className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
-            Dashboard
-          </h1>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  const newDate = subMonths(selectedDate, 1);
-                  setSelectedDate(newDate);
-                  setDateRange({
-                    start: startOfMonth(newDate),
-                    end: endOfMonth(newDate),
-                  });
-                }}
-                className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-                aria-label="Previous month"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                  viewBox="0 0 16 16"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"
-                  />
-                </svg>
-              </button>
+        {loading ? (
+          <DashboardSkeleton />
+        ) : (
+          <>
+            <Head>
+              <title>Dashboard - PHC Data Collection</title>
+            </Head>
 
-              <span className="text-lg font-medium px-2">
-                {format(selectedDate, "MMMM yyyy")}
-              </span>
-
-              <button
-                onClick={() => {
-                  const now = new Date();
-                  const newDate = addMonths(selectedDate, 1);
-                  // Don't allow selection of future months
-                  if (newDate <= now) {
-                    setSelectedDate(newDate);
-                    setDateRange({
-                      start: startOfMonth(newDate),
-                      end: endOfMonth(newDate),
-                    });
-                  }
-                }}
-                className={`p-2 bg-gray-200 rounded-lg ${
-                  format(selectedDate, "yyyy-MM") ===
-                  format(new Date(), "yyyy-MM")
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:bg-gray-300"
-                }`}
-                disabled={
-                  format(selectedDate, "yyyy-MM") ===
-                  format(new Date(), "yyyy-MM")
-                }
-                aria-label="Next month"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                  viewBox="0 0 16 16"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
-                  />
-                </svg>
-              </button>
-
-              <button
-                onClick={() => {
-                  const now = new Date();
-                  setSelectedDate(now);
-                  setDateRange({
-                    start: startOfMonth(now),
-                    end: endOfMonth(now),
-                  });
-                }}
-                className={`ml-2 px-3 py-1 text-sm ${
-                  format(selectedDate, "yyyy-MM") ===
-                  format(new Date(), "yyyy-MM")
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                } rounded`}
-              >
-                Current Month
-              </button>
-            </div>
-
-            <Link
-              href="/add-center"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
-            >
-              Add New Center
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <DashboardCard
-            title="Healthcare Centers"
-            value={stats.totalCenters}
-            icon="building"
-            color="blue"
-          />
-          <DashboardCard
-            title={`Doses Administered (${format(selectedDate, "MMMM yyyy")})`}
-            value={stats.totalDoses}
-            icon="syringe"
-            color="green"
-          />
-          <DashboardCard
-            title="Treatment Areas"
-            value={treatmentAreaCount}
-            subValue={`${Math.round(
-              (treatmentAreaCount / stats.totalCenters) * 100
-            )}% of centers`}
-            icon="clinic-medical"
-            color="teal"
-          />
-          <DashboardCard
-            title={`Reports (${format(selectedDate, "MMMM yyyy")})`}
-            value={stats.recentReports}
-            icon="clipboard-check"
-            color="purple"
-          />
-        </div>
-
-        <div className="mb-8">
-          {/* Map - Full Width */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Center Locations</h2>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+              <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
+                Dashboard
+              </h1>
               <div className="flex items-center space-x-4">
-                <label className="flex items-center text-sm space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={showTreatmentAreas}
-                    onChange={(e) => setShowTreatmentAreas(e.target.checked)}
-                    className="h-4 w-4 text-blue-600"
-                  />
-                  <span>Show treatment areas only</span>
-                </label>
-                <select
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="px-3 py-1 border rounded"
-                >
-                  <option value="all">All States</option>
-                  {Object.keys(stateStats).map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <ErrorBoundary fallback={<div>Map could not be displayed</div>}>
-              <Map
-                centers={filteredCenters}
-                height="400px"
-                onCenterSelect={(id) => router.push(`/center/${id}`)}
-              />
-            </ErrorBoundary>
-          </div>
-
-          {/* Two Column Layout - Chart on Left, Stats on Right */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Vaccination Chart */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold mb-4">
-                  Vaccination Doses ({format(selectedDate, "MMMM yyyy")})
-                </h2>
-                <ErrorBoundary
-                  fallback={<div>Chart could not be displayed</div>}
-                >
-                  <VaccinationChart data={stats.monthlyData} height="300px" />
-                </ErrorBoundary>
-              </div>
-            </div>
-
-            {/* Right Column - Stats and Links */}
-            <div className="space-y-8">
-              {/* Doses by State Card */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold mb-4">Doses by State</h2>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {Object.entries(stateStats).map(([state, doses]) => (
-                    <div
-                      key={`state-${state}`}
-                      className="flex justify-between items-center"
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const newDate = subMonths(selectedDate, 1);
+                      setSelectedDate(newDate);
+                      setDateRange({
+                        start: startOfMonth(newDate),
+                        end: endOfMonth(newDate),
+                      });
+                    }}
+                    className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                    aria-label="Previous month"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
                     >
-                      <span>{state}</span>
-                      <span className="font-semibold">{doses} doses</span>
+                      <path
+                        fillRule="evenodd"
+                        d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"
+                      />
+                    </svg>
+                  </button>
+
+                  <span className="text-lg font-medium px-2">
+                    {format(selectedDate, "MMMM yyyy")}
+                  </span>
+
+                  <button
+                    onClick={() => {
+                      const now = new Date();
+                      const newDate = addMonths(selectedDate, 1);
+                      // Don't allow selection of future months
+                      if (newDate <= now) {
+                        setSelectedDate(newDate);
+                        setDateRange({
+                          start: startOfMonth(newDate),
+                          end: endOfMonth(newDate),
+                        });
+                      }
+                    }}
+                    className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                    aria-label="Next month"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
+                      />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const now = new Date();
+                      setSelectedDate(now);
+                      setDateRange({
+                        start: startOfMonth(now),
+                        end: endOfMonth(now),
+                      });
+                    }}
+                    className={`ml-2 px-3 py-1 text-sm ${
+                      format(selectedDate, "yyyy-MM") ===
+                      format(new Date(), "yyyy-MM")
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    } rounded`}
+                  >
+                    Current Month
+                  </button>
+                </div>
+
+                <Link
+                  href="/add-center"
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
+                >
+                  Add New Center
+                </Link>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              {/* Two Column Layout - Chart on Left, Stats on Right */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                {/* Left Column - Vaccination Chart */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-bold mb-4">
+                      Vaccination Doses ({format(selectedDate, "MMMM yyyy")})
+                    </h2>
+                    <ErrorBoundary
+                      fallback={<div>Chart could not be displayed</div>}
+                    >
+                      <VaccinationChart
+                        data={stats.monthlyData}
+                        height="300px"
+                      />
+                    </ErrorBoundary>
+                  </div>
+                </div>
+
+                {/* Right Column - Stats and Links */}
+                <div className="space-y-8">
+                  {/* Doses by State Card */}
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-bold mb-4">
+                      Doses by State ({format(selectedDate, "MMMM yyyy")})
+                    </h2>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {Object.entries(stateStats).map(([state, doses]) => (
+                        <div
+                          key={`state-${state}`}
+                          className="flex justify-between items-center"
+                        >
+                          <span>{state}</span>
+                          <span className="font-semibold">{doses} doses</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Quick Links Card */}
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-bold mb-4">Quick Links</h2>
+                    <div className="space-y-2">
+                      <Link
+                        href="/add-center"
+                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                      >
+                        Add New Healthcare Center
+                      </Link>
+                      <Link
+                        href="/"
+                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                      >
+                        View All Centers
+                      </Link>
+                      <Link
+                        href="/reports"
+                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                      >
+                        View All Reports
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Quick Links Card */}
+              {/* Map - Full Width - Now below other elements */}
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold mb-4">Quick Links</h2>
-                <div className="space-y-2">
-                  <Link
-                    href="/add-center"
-                    className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Center Locations</h2>
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center text-sm space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={showTreatmentAreas}
+                        onChange={(e) =>
+                          setShowTreatmentAreas(e.target.checked)
+                        }
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <span>Show treatment areas only</span>
+                    </label>
+                    <select
+                      value={selectedState}
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      className="px-3 py-1 border rounded"
+                    >
+                      <option value="all">All States</option>
+                      {Object.keys(stateStats).map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ height: "500px", width: "100%" }}>
+                  <ErrorBoundary
+                    fallback={<div>Map could not be displayed</div>}
                   >
-                    Add New Healthcare Center
-                  </Link>
-                  <Link
-                    href="/"
-                    className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                  >
-                    View All Centers
-                  </Link>
-                  <Link
-                    href="/reports"
-                    className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                  >
-                    View All Reports
-                  </Link>
+                    <Map
+                      centers={filteredCenters}
+                      height="100%"
+                      onCenterSelect={(id) => router.push(`/center/${id}`)}
+                    />
+                  </ErrorBoundary>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </main>
     </div>
   );

@@ -18,3 +18,23 @@ a {
 * {
   box-sizing: border-box;
 }
+
+.treatment-marker {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+.standard-marker {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.3));
+}
+
+.custom-div-icon {
+  z-index: 1000 !important;
+}
+
+.leaflet-marker-icon {
+  z-index: 1000 !important;
+}
+
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
