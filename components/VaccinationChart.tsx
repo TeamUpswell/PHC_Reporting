@@ -4,6 +4,7 @@ import Chart from "chart.js/auto";
 interface ChartDataPoint {
   month: string;
   doses: number;
+  fullLabel?: string; // Add this line to include the optional fullLabel property
 }
 
 interface VaccinationChartProps {
