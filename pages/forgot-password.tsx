@@ -22,9 +22,13 @@ export default function ForgotPassword() {
     setMessage(null);
 
     try {
-      // Use updated Supabase method for v2 API
+      // Use environment variable if available, otherwise use current origin
+      const siteURL =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      console.log(`Using site URL for redirects: ${siteURL}`);
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${siteURL}/reset-password`,
       });
 
       if (error) throw error;
