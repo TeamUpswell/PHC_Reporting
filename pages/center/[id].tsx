@@ -1,13 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
-import { HealthcareCenter, MonthlyReport } from "../../types"; // Updated import
-import { format, startOfMonth } from "date-fns";
+import { HealthcareCenter, MonthlyReport } from "../../types";
+import {
+  format,
+  startOfMonth,
+  parseISO,
+  subMonths,
+  endOfMonth,
+} from "date-fns";
 import MonthSelector from "../../components/MonthSelector";
 import MonthlyReportForm from "../../components/MonthlyReportForm";
 import dynamic from "next/dynamic";
+import DashboardCard from "../../components/DashboardCard";
 
 // Add this dynamic import to prevent SSR issues with the map
 const Map = dynamic(() => import("../../components/Map"), {
@@ -18,6 +25,30 @@ const Map = dynamic(() => import("../../components/Map"), {
     </div>
   ),
 });
+
+// Add this dynamic import for the chart component
+const VaccinationChart = dynamic(
+  () => import("../../components/VaccinationChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 bg-white rounded-lg shadow-md flex items-center justify-center">
+        Loading chart...
+      </div>
+    ),
+  }
+);
+
+interface CenterStats {
+  monthlyData: Array<{
+    month: string;
+    fullLabel: string;
+    doses: number;
+  }>;
+  currentMonthDoses: number;
+  previousMonthDoses: number;
+  growthPercent: number;
+}
 
 export default function CenterDetail() {
   const router = useRouter();
@@ -34,6 +65,12 @@ export default function CenterDetail() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [centerStats, setCenterStats] = useState<CenterStats>({
+    monthlyData: [],
+    currentMonthDoses: 0,
+    previousMonthDoses: 0,
+    growthPercent: 0,
+  });
 
   // Fetch center details
   useEffect(() => {
@@ -106,7 +143,6 @@ export default function CenterDetail() {
   const deleteCenter = async () => {
     setDeleteLoading(true);
     try {
-      // Add this null check
       if (!center) {
         setError("Cannot delete: center not found");
         setShowDeleteModal(false);
@@ -114,7 +150,6 @@ export default function CenterDetail() {
         return;
       }
 
-      // Now center is guaranteed to exist
       const { error: reportsError } = await supabase
         .from("monthly_reports")
         .delete()
@@ -122,7 +157,6 @@ export default function CenterDetail() {
 
       if (reportsError) throw reportsError;
 
-      // Then delete the center itself
       const { error: centerError } = await supabase
         .from("healthcare_centers")
         .delete()
@@ -130,7 +164,6 @@ export default function CenterDetail() {
 
       if (centerError) throw centerError;
 
-      // Redirect to homepage after successful deletion
       router.push("/");
     } catch (err: any) {
       console.error("Error deleting center:", err);
@@ -139,6 +172,84 @@ export default function CenterDetail() {
       setDeleteLoading(false);
     }
   };
+
+  const fetchCenterStats = useCallback(async () => {
+    if (!center?.id) return;
+
+    try {
+      const now = new Date();
+      const previousMonth = subMonths(now, 1);
+      const sixMonthsAgo = format(subMonths(now, 5), "yyyy-MM-dd");
+
+      const { data: reports, error } = await supabase
+        .from("monthly_reports")
+        .select("*")
+        .eq("center_id", center.id)
+        .gte("report_month", sixMonthsAgo)
+        .order("report_month", { ascending: true });
+
+      if (error) throw error;
+
+      const monthlyData = [];
+
+      for (let i = 5; i >= 0; i--) {
+        const targetDate = subMonths(now, i);
+        const fullLabel = format(targetDate, "MMM yyyy");
+        const monthReports =
+          reports?.filter((report) => {
+            if (!report.report_month) return false;
+            const reportDate = parseISO(report.report_month);
+            return (
+              format(reportDate, "yyyy-MM") === format(targetDate, "yyyy-MM")
+            );
+          }) || [];
+
+        const monthDoses = monthReports.reduce((sum, report) => {
+          let reportDoses = 0;
+          if (typeof report.total_doses === "number") {
+            reportDoses = report.total_doses;
+          } else {
+            const fixedDoses =
+              typeof report.fixed_doses === "number" ? report.fixed_doses : 0;
+            const outreachDoses =
+              typeof report.outreach_doses === "number"
+                ? report.outreach_doses
+                : 0;
+            reportDoses = fixedDoses + outreachDoses;
+          }
+          return sum + reportDoses;
+        }, 0);
+
+        monthlyData.push({
+          month: format(targetDate, "MMM"),
+          fullLabel: fullLabel,
+          doses: monthDoses,
+        });
+      }
+
+      const currentMonthDoses = monthlyData[5]?.doses || 0;
+      const previousMonthDoses = monthlyData[4]?.doses || 0;
+
+      let growthPercent = 0;
+      if (previousMonthDoses > 0) {
+        growthPercent =
+          ((currentMonthDoses - previousMonthDoses) / previousMonthDoses) * 100;
+      }
+
+      setCenterStats({
+        monthlyData,
+        currentMonthDoses,
+        previousMonthDoses,
+        growthPercent,
+      });
+    } catch (error) {
+      console.error("Error fetching center stats:", error);
+    }
+  }, [center?.id]);
+
+  useEffect(() => {
+    fetchCenterStats();
+  }, [fetchCenterStats]);
 
   if (loading && !center) {
     return (
@@ -257,11 +368,7 @@ export default function CenterDetail() {
               Center Location
             </h2>
             <div className="h-72">
-              <Map
-                centers={[center]}
-                height="100%"
-                onCenterSelect={() => {}}
-              />
+              <Map centers={[center]} height="100%" onCenterSelect={() => {}} />
             </div>
           </div>
         ) : (
@@ -284,6 +391,29 @@ export default function CenterDetail() {
           onCancel={() => setShowReportForm(false)}
           initialReport={report || undefined}
         />
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-blue-800 mb-4">
+            Vaccination Statistics
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <DashboardCard
+              title="Current Month Doses"
+              value={centerStats.currentMonthDoses}
+            />
+            <DashboardCard
+              title="Previous Month Doses"
+              value={centerStats.previousMonthDoses}
+            />
+            <DashboardCard
+              title="Growth Percentage"
+              value={`${centerStats.growthPercent.toFixed(2)}%`}
+            />
+          </div>
+          <div className="mt-6">
+            <VaccinationChart data={centerStats.monthlyData} />
+          </div>
+        </div>
       </main>
 
       {showDeleteModal && (
