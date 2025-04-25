@@ -1,10 +1,4 @@
 {
-  "../components/CenterForm.tsx -> ./Map": {
-    "id": "../components/CenterForm.tsx -> ./Map",
-    "files": [
-      "static/chunks/components_Map_tsx.js"
-    ]
-  },
   "../components/Map.tsx -> ./MapContainer": {
     "id": "../components/Map.tsx -> ./MapContainer",
     "files": [

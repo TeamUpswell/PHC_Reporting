@@ -52,6 +52,20 @@ interface DashboardStats {
   }>;
 }
 
+interface SummaryData {
+  totalCenters: number;
+  treatmentCenters: number;
+  controlCenters: number;
+  totalVaccinations: number;
+  treatmentVaccinations: number;
+  controlVaccinations: number;
+  treatmentGrowthPercent: number;
+  controlGrowthPercent: number;
+  prevTreatmentVaccinations: number;
+  prevControlVaccinations: number;
+  recentReports: number;
+}
+
 const DashboardSkeleton = () => (
   <div>
     <div className="mb-8 flex justify-between items-center">
@@ -129,6 +143,22 @@ export default function Dashboard() {
   const [stateStats, setStateStats] = useState<Record<string, number>>({});
   const [showTreatmentAreas, setShowTreatmentAreas] = useState(false);
 
+  const [summaryData, setSummaryData] = useState<SummaryData>({
+    totalCenters: 0,
+    treatmentCenters: 0,
+    controlCenters: 0,
+    totalVaccinations: 0,
+    treatmentVaccinations: 0,
+    controlVaccinations: 0,
+    treatmentGrowthPercent: 0,
+    controlGrowthPercent: 0,
+    prevTreatmentVaccinations: 0,
+    prevControlVaccinations: 0,
+    recentReports: 0,
+  });
+
+  const [recentCenterReports, setRecentCenterReports] = useState([]);
+
   const handleStateChange = useCallback((newState: string) => {
     setSelectedState(newState);
   }, []);
@@ -175,6 +205,252 @@ export default function Dashboard() {
     }
   };
 
+  const fetchSummaryData = useCallback(async () => {
+    try {
+      console.log("Fetching summary data...");
+
+      // Get centers count
+      const { data: centers, error: centersError } = await supabase
+        .from("healthcare_centers")
+        .select("*");
+
+      if (centersError) {
+        console.error("Error fetching centers:", centersError);
+        throw centersError;
+      }
+
+      const totalCenters = centers?.length || 0;
+      const treatmentCenters =
+        centers?.filter((c) => c.is_treatment_area === true).length || 0;
+      const controlCenters = totalCenters - treatmentCenters;
+
+      // Filter reports for the selected month only (new code)
+      const selectedMonthStart = format(selectedDate, "yyyy-MM-01");
+      const selectedMonthEnd = format(endOfMonth(selectedDate), "yyyy-MM-dd");
+
+      // Get reports for the selected month only
+      const { data: reportsWithCenters, error: reportsError } = await supabase
+        .from("monthly_reports")
+        .select(`*, center:center_id(id, is_treatment_area)`)
+        .gte("report_month", selectedMonthStart)
+        .lte("report_month", selectedMonthEnd);
+
+      if (reportsError) {
+        console.error("Error fetching reports:", reportsError);
+        throw reportsError;
+      }
+
+      console.log("Selected month reports:", reportsWithCenters?.length);
+      console.log("Date range:", { selectedMonthStart, selectedMonthEnd });
+
+      // Calculate vaccinations by center type for the selected month only
+      let totalVaccinations = 0;
+      let treatmentVaccinations = 0;
+      let controlVaccinations = 0;
+
+      if (reportsWithCenters && reportsWithCenters.length > 0) {
+        reportsWithCenters.forEach((report) => {
+          let reportVaccinations = 0;
+
+          // Calculate total vaccinations for this report
+          if (typeof report.total_vaccinations === "number") {
+            reportVaccinations = report.total_vaccinations;
+          } else if (typeof report.total_doses === "number") {
+            reportVaccinations = report.total_doses;
+          } else {
+            const dose1 =
+              typeof report.dose1_count === "number" ? report.dose1_count : 0;
+            const dose2 =
+              typeof report.dose2_count === "number" ? report.dose2_count : 0;
+            reportVaccinations = dose1 + dose2;
+          }
+
+          totalVaccinations += reportVaccinations;
+
+          // Add to treatment or control count based on the center type
+          if (report.center && report.center.is_treatment_area === true) {
+            treatmentVaccinations += reportVaccinations;
+          } else {
+            controlVaccinations += reportVaccinations;
+          }
+        });
+      }
+
+      // After calculating current month's vaccinations, get previous month data
+      const previousMonthDate = subMonths(selectedDate, 1);
+      const previousMonthStart = format(previousMonthDate, "yyyy-MM-01");
+      const previousMonthEnd = format(
+        endOfMonth(previousMonthDate),
+        "yyyy-MM-dd"
+      );
+
+      // Get reports for the previous month
+      const { data: previousMonthReports, error: prevReportsError } =
+        await supabase
+          .from("monthly_reports")
+          .select(`*, center:center_id(id, is_treatment_area)`)
+          .gte("report_month", previousMonthStart)
+          .lte("report_month", previousMonthEnd);
+
+      if (prevReportsError) {
+        console.error(
+          "Error fetching previous month reports:",
+          prevReportsError
+        );
+      }
+
+      // Calculate previous month vaccinations
+      let prevTreatmentVaccinations = 0;
+      let prevControlVaccinations = 0;
+
+      if (previousMonthReports && previousMonthReports.length > 0) {
+        previousMonthReports.forEach((report) => {
+          let reportVaccinations = 0;
+
+          // Calculate total vaccinations for this report
+          if (typeof report.total_vaccinations === "number") {
+            reportVaccinations = report.total_vaccinations;
+          } else if (typeof report.total_doses === "number") {
+            reportVaccinations = report.total_doses;
+          } else {
+            const dose1 =
+              typeof report.dose1_count === "number" ? report.dose1_count : 0;
+            const dose2 =
+              typeof report.dose2_count === "number" ? report.dose2_count : 0;
+            reportVaccinations = dose1 + dose2;
+          }
+
+          // Add to treatment or control count based on the center type
+          if (report.center && report.center.is_treatment_area === true) {
+            prevTreatmentVaccinations += reportVaccinations;
+          } else {
+            prevControlVaccinations += reportVaccinations;
+          }
+        });
+      }
+
+      // Calculate growth percentages
+      let treatmentGrowthPercent = 0;
+      let controlGrowthPercent = 0;
+
+      if (prevTreatmentVaccinations > 0) {
+        treatmentGrowthPercent =
+          ((treatmentVaccinations - prevTreatmentVaccinations) /
+            prevTreatmentVaccinations) *
+          100;
+      }
+
+      if (prevControlVaccinations > 0) {
+        controlGrowthPercent =
+          ((controlVaccinations - prevControlVaccinations) /
+            prevControlVaccinations) *
+          100;
+      }
+
+      // Get recent reports (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: recentReports, error: recentReportsError } = await supabase
+        .from("monthly_reports")
+        .select("*")
+        .gte("created_at", thirtyDaysAgo.toISOString());
+
+      if (recentReportsError) {
+        console.error("Error fetching recent reports:", recentReportsError);
+        throw recentReportsError;
+      }
+
+      const recentReportsCount = recentReports?.length || 0;
+
+      // Get recent center reports with healthcare center info
+      const { data: recentCenterData, error: recentCenterError } =
+        await supabase
+          .from("monthly_reports")
+          .select(`*, healthcare_center:center_id (*)`)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+      if (recentCenterError) {
+        console.error("Error fetching recent center data:", recentCenterError);
+        throw recentCenterError;
+      }
+
+      console.log("Recent center data:", recentCenterData);
+
+      // Transform the data to match your component's expectations
+      const transformedReports =
+        recentCenterData?.map((report) => {
+          // Calculate total vaccinations for this report
+          let reportVaccinations = 0;
+
+          if (typeof report.total_vaccinations === "number") {
+            reportVaccinations = report.total_vaccinations;
+          } else if (typeof report.total_doses === "number") {
+            reportVaccinations = report.total_doses;
+          } else {
+            const dose1 =
+              typeof report.dose1_count === "number" ? report.dose1_count : 0;
+            const dose2 =
+              typeof report.dose2_count === "number" ? report.dose2_count : 0;
+            reportVaccinations = dose1 + dose2;
+          }
+
+          return {
+            id: report.id,
+            reporting_month: report.report_month,
+            healthcare_center: report.healthcare_center,
+            total_vaccinations: reportVaccinations,
+            created_at: report.created_at,
+          };
+        }) || [];
+
+      // Update the state with the fetched data
+      setSummaryData({
+        totalCenters,
+        treatmentCenters,
+        controlCenters,
+        totalVaccinations,
+        treatmentVaccinations,
+        controlVaccinations,
+        treatmentGrowthPercent,
+        controlGrowthPercent,
+        prevTreatmentVaccinations,
+        prevControlVaccinations,
+        recentReports: recentReportsCount,
+      });
+
+      setRecentCenterReports(transformedReports);
+
+      // Add month info to console log
+      console.log(
+        "Summary data updated for",
+        format(selectedDate, "MMMM yyyy"),
+        ":",
+        {
+          totalCenters,
+          treatmentCenters,
+          controlCenters,
+          totalVaccinations,
+          treatmentVaccinations,
+          controlVaccinations,
+          treatmentGrowthPercent,
+          controlGrowthPercent,
+          prevTreatmentVaccinations,
+          prevControlVaccinations,
+          recentReports: recentReportsCount,
+        }
+      );
+    } catch (error) {
+      console.error("Error in fetchSummaryData:", error);
+      // Don't throw here, just log it
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchSummaryData();
+  }, [fetchSummaryData]);
+
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
@@ -198,11 +474,9 @@ export default function Dashboard() {
           const centers = Array.isArray(centersData)
             ? centersData
             : centersData || [];
-
           setCenters(centers as HealthcareCenter[]);
 
           const areaStats: Record<string, number> = {};
-
           // Make sure we're iterating over the array
           centers.forEach((center) => {
             if (center && center.area) {
@@ -315,7 +589,7 @@ export default function Dashboard() {
             }
           });
 
-          // Calculate doses for the selected month
+          // Calculate doses for the selected month only
           const totalDoses = selectedMonthReportsForStats.reduce(
             (sum, report) => sum + (report.total_doses || 0),
             0
@@ -376,7 +650,6 @@ export default function Dashboard() {
     if (!centers || !Array.isArray(centers)) {
       return [];
     }
-
     return centers.filter(
       (center) =>
         (selectedState === "all" || center.state === selectedState) &&
@@ -409,7 +682,6 @@ export default function Dashboard() {
             <Head>
               <title>Dashboard - PHC Data Collection</title>
             </Head>
-
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
               <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
                 Dashboard
@@ -441,11 +713,9 @@ export default function Dashboard() {
                       />
                     </svg>
                   </button>
-
                   <span className="text-lg font-medium px-2">
                     {format(selectedDate, "MMMM yyyy")}
                   </span>
-
                   <button
                     onClick={() => {
                       const now = new Date();
@@ -475,7 +745,6 @@ export default function Dashboard() {
                       />
                     </svg>
                   </button>
-
                   <button
                     onClick={() => {
                       const now = new Date();
@@ -495,13 +764,235 @@ export default function Dashboard() {
                     Current Month
                   </button>
                 </div>
-
                 <Link
                   href="/add-center"
                   className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
                 >
                   Add New Center
                 </Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <DashboardCard
+                title="Total Centers"
+                value={summaryData.totalCenters}
+                icon="🏥"
+                trend={null}
+              />
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center mb-2">
+                  <div className="text-green-500 mr-3">💉</div>
+                  <h3 className="text-lg font-medium text-gray-700">
+                    Treatment Centers
+                  </h3>
+                </div>
+                <div className="text-2xl font-bold">
+                  {summaryData.treatmentVaccinations.toLocaleString()} doses
+                </div>
+                <div className="text-green-600 font-medium mt-1 text-sm">
+                  {summaryData.treatmentCenters} centers
+                  <span className="text-gray-500 ml-1">
+                    ({format(selectedDate, "MMM yyyy")})
+                  </span>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center mb-2">
+                  <div className="text-red-500 mr-3">🔍</div>
+                  <h3 className="text-lg font-medium text-gray-700">
+                    Control Centers
+                  </h3>
+                </div>
+                <div className="text-2xl font-bold">
+                  {summaryData.controlVaccinations.toLocaleString()} doses
+                </div>
+                <div className="text-red-600 font-medium mt-1 text-sm">
+                  {summaryData.controlCenters} centers
+                  <span className="text-gray-500 ml-1">
+                    ({format(selectedDate, "MMM yyyy")})
+                  </span>
+                </div>
+              </div>
+              <DashboardCard
+                title="Total Vaccinations"
+                value={summaryData.totalVaccinations.toLocaleString()}
+                icon="💪"
+                trend={null}
+                color="blue"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Treatment Growth Box */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Treatment Area Growth
+                </h2>
+                <div className="flex items-center mb-4">
+                  <div className="text-2xl font-bold">
+                    {summaryData.treatmentGrowthPercent.toFixed(1)}%
+                  </div>
+                  <div className="ml-3">
+                    {summaryData.treatmentGrowthPercent > 0 ? (
+                      <svg
+                        className="w-8 h-8 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                        />
+                      </svg>
+                    ) : summaryData.treatmentGrowthPercent < 0 ? (
+                      <svg
+                        className="w-8 h-8 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 12h14"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600">
+                  <p className="mb-1">
+                    Current month:{" "}
+                    {summaryData.treatmentVaccinations.toLocaleString()} doses
+                  </p>
+                  <p>
+                    Previous month:{" "}
+                    {summaryData.prevTreatmentVaccinations.toLocaleString()}{" "}
+                    doses
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Month-over-month growth for Treatment Areas
+                  </p>
+                </div>
+              </div>
+
+              {/* Control Growth Box */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Control Area Growth
+                </h2>
+                <div className="flex items-center mb-4">
+                  <div className="text-2xl font-bold">
+                    {summaryData.controlGrowthPercent.toFixed(1)}%
+                  </div>
+                  <div className="ml-3">
+                    {summaryData.controlGrowthPercent > 0 ? (
+                      <svg
+                        className="w-8 h-8 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                        />
+                      </svg>
+                    ) : summaryData.controlGrowthPercent < 0 ? (
+                      <svg
+                        className="w-8 h-8 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 12h14"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600">
+                  <p className="mb-1">
+                    Current month:{" "}
+                    {summaryData.controlVaccinations.toLocaleString()} doses
+                  </p>
+                  <p>
+                    Previous month:{" "}
+                    {summaryData.prevControlVaccinations.toLocaleString()} doses
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Month-over-month growth for Control Areas
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Recent Activity</h2>
+                <span className="text-sm text-gray-600">
+                  Last updated: {format(new Date(), "PPpp")}
+                </span>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">Reports</h3>
+                    <div className="flex items-end gap-2">
+                      <span className="text-2xl font-bold">
+                        {summaryData.recentReports}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        in the last 30 days
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -591,6 +1082,124 @@ export default function Dashboard() {
                     />
                   </ErrorBoundary>
                 </div>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Recent Reports</h2>
+                <Link
+                  href="/reports"
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View all reports →
+                </Link>
+              </div>
+
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Center
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Month
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Vaccinations
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Type
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Date Submitted
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {recentCenterReports && recentCenterReports.length > 0 ? (
+                      recentCenterReports.map((report) => (
+                        <tr key={report.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="font-medium text-gray-900">
+                              {report.healthcare_center?.name ||
+                                "Unknown Center"}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {report.healthcare_center ? (
+                                <>
+                                  {report.healthcare_center.state ||
+                                    "Unknown State"}
+                                  ,{" "}
+                                  {report.healthcare_center.lga ||
+                                    "Unknown LGA"}
+                                </>
+                              ) : (
+                                "Location unavailable"
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {report.reporting_month
+                              ? format(
+                                  new Date(report.reporting_month),
+                                  "MMMM yyyy"
+                                )
+                              : "Unknown Date"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {typeof report.total_vaccinations === "number"
+                              ? report.total_vaccinations
+                              : 0}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                report.healthcare_center?.is_treatment_area
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {report.healthcare_center?.is_treatment_area
+                                ? "Treatment"
+                                : "Control"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {report.created_at
+                              ? format(new Date(report.created_at), "PP")
+                              : "Unknown"}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-6 py-4 text-center text-sm text-gray-500"
+                        >
+                          No recent reports found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
