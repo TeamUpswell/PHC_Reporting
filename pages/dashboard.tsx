@@ -272,13 +272,13 @@ const Dashboard = () => {
       let treatmentVaccinations = 0;
       let controlVaccinations = 0;
 
-      if (monthlyReports && monthlyReports.length > 0) {
-        // Create a map of center IDs to their treatment status for quick lookup
-        const centerTreatmentMap = new Map();
-        centers?.forEach((center) => {
-          centerTreatmentMap.set(center.id, center.is_treatment_area);
-        });
+      // Create a map of center IDs to their treatment status for quick lookup
+      const centerTreatmentMap = new Map();
+      centers?.forEach((center) => {
+        centerTreatmentMap.set(center.id, center.is_treatment_area);
+      });
 
+      if (monthlyReports && monthlyReports.length > 0) {
         monthlyReports.forEach((report) => {
           // Calculate total vaccinations for this report
           let reportVaccinations = 0;
@@ -301,7 +301,6 @@ const Dashboard = () => {
           totalVaccinations += reportVaccinations;
 
           // Add to treatment or control based on center type
-          // Using the map we created for quick lookup
           const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
 
           if (isTreatmentCenter === true) {
@@ -345,7 +344,6 @@ const Dashboard = () => {
       let prevControlVaccinations = 0;
 
       if (prevMonthReports && prevMonthReports.length > 0) {
-        // Use the same center treatment map from above
         prevMonthReports.forEach((report) => {
           let reportVaccinations = 0;
 
