@@ -281,7 +281,7 @@ const MapMarkers: React.FC<MapContainerProps> = ({
                   console.error("Failed to update treatment status:", error);
                   // Reset checkbox if the update failed
                   (newCheckbox as HTMLInputElement).checked =
-                    center.is_treatment_area;
+                    center.is_treatment_area || false; // Add "|| false" to ensure it's always a boolean
                   alert("Failed to update treatment status. Please try again.");
                 } finally {
                   // Re-enable map dragging if it was enabled before
