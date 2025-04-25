@@ -1,4 +1,9 @@
-export const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
+export const publicRoutes = [
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/auth/callback",
+];
 
 // Helper function to check if a route is public
 export function isPublicRoute(path: string): boolean {

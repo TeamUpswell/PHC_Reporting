@@ -5,7 +5,6 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
 export default function ChangePassword() {
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,36 +39,24 @@ export default function ChangePassword() {
     setMessage(null);
 
     try {
-      // First, verify the current password by trying to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
-        password: currentPassword,
-      });
+      // Send a password reset email for security
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        user?.email || "",
+        {
+          redirectTo: `https://vstracker.upswell.app/auth/callback`,
+        }
+      );
 
-      if (signInError) {
-        throw new Error("Current password is incorrect");
-      }
-
-      // If sign-in was successful, update the password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) throw updateError;
+      if (resetError) throw resetError;
 
       setMessage({
-        text: "Password updated successfully!",
+        text: "A password reset link has been sent to your email. Please check your inbox.",
         type: "success",
       });
-
-      // Clear form
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
     } catch (error: any) {
       console.error("Password change error:", error);
       setMessage({
-        text: error.message || "Failed to update password",
+        text: error.message || "Failed to send password reset email",
         type: "error",
       });
     } finally {
@@ -103,69 +90,28 @@ export default function ChangePassword() {
           onSubmit={handleSubmit}
         >
           <div className="mb-4">
-            <label
-              htmlFor="current-password"
-              className="block text-gray-700 text-sm font-bold mb-2"
-            >
-              Current Password
-            </label>
-            <input
-              id="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div className="mb-4">
-            <label
-              htmlFor="new-password"
-              className="block text-gray-700 text-sm font-bold mb-2"
-            >
-              New Password
-            </label>
-            <input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              minLength={6}
-            />
+            <p className="text-sm text-gray-600 mb-4">
+              For security reasons, we'll send a password reset link to your
+              email address. You don't need to know your current password to set
+              a new one.
+            </p>
           </div>
 
           <div className="mb-6">
-            <label
-              htmlFor="confirm-password"
-              className="block text-gray-700 text-sm font-bold mb-2"
-            >
-              Confirm New Password
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 w-full"
             >
-              {loading ? "Updating..." : "Update Password"}
+              {loading ? "Sending..." : "Send Password Reset Link"}
             </button>
+          </div>
+
+          <div className="text-center text-sm">
             <button
               type="button"
               onClick={() => router.back()}
-              className="text-blue-600 hover:underline text-sm"
+              className="text-blue-600 hover:underline"
             >
               Cancel
             </button>
