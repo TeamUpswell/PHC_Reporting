@@ -19,7 +19,17 @@ const Navbar = () => {
           </div>
 
           <div className="flex space-x-4">
-            {/* EXPLICITLY USING "Centers" HERE */}
+            {/* Dashboard first */}
+            <Link
+              href="/dashboard"
+              className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/dashboard") ? "bg-blue-900" : ""
+              }`}
+            >
+              Dashboard
+            </Link>
+
+            {/* Centers second */}
             <Link
               href="/"
               className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
@@ -32,14 +42,8 @@ const Navbar = () => {
             >
               Centers
             </Link>
-            <Link
-              href="/dashboard"
-              className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
-                isActive("/dashboard") ? "bg-blue-900" : ""
-              }`}
-            >
-              Dashboard
-            </Link>
+
+            {/* Reports third */}
             <Link
               href="/reports"
               className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
