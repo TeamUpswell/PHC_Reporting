@@ -6,3 +6,8 @@ export function isPublicRoute(path: string): boolean {
     (route) => path === route || path.startsWith(`${route}/`)
   );
 }
+
+// Add a function to check if a route requires authentication
+export function requiresAuth(path: string): boolean {
+  return !isPublicRoute(path);
+}

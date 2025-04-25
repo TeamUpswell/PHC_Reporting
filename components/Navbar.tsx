@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext"; // Import the auth context
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const Navbar = () => {
   useEffect(() => {
@@ -11,6 +11,7 @@ const Navbar = () => {
 
   const router = useRouter();
   const { user, signOut } = useAuth(); // Use the auth context
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
     return router.pathname === path || router.pathname.startsWith(`${path}/`);
@@ -73,6 +74,59 @@ const Navbar = () => {
                 >
                   Logout
                 </button>
+              </div>
+            )}
+
+            {/* Add a user account dropdown */}
+            {user && (
+              <div className="relative ml-3">
+                <div>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-blue-800 focus:ring-white"
+                    id="user-menu-button"
+                    aria-expanded="false"
+                    aria-haspopup="true"
+                  >
+                    <span className="sr-only">Open user menu</span>
+                    <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
+                      <span className="text-sm font-medium">
+                        {user?.email?.charAt(0).toUpperCase() || "U"}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Dropdown menu */}
+                {userMenuOpen && (
+                  <div
+                    className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    role="menu"
+                    aria-orientation="vertical"
+                    aria-labelledby="user-menu-button"
+                  >
+                    <div className="px-4 py-2 text-xs text-gray-500">
+                      {user?.email}
+                    </div>
+                    <Link
+                      href="/change-password"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                    >
+                      Change Password
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        await signOut();
+                        router.push("/login");
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
