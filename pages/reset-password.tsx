@@ -6,47 +6,121 @@ import { supabase } from "../lib/supabase";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
+  const [resetReady, setResetReady] = useState(false);
   const router = useRouter();
 
+  // Check for valid reset session
   useEffect(() => {
-    // Check if we have a hash fragment for password reset
-    const hash = window.location.hash.substring(1);
-    if (hash) {
-      const params = new URLSearchParams(hash);
-      if (params.get("type") === "recovery") {
+    const checkResetSession = async () => {
+      try {
+        console.log("Checking reset session...");
+
+        // Force logout any existing sessions
+        await supabase.auth.signOut();
+
+        // Check for recovery token in URL
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const type = params.get("type");
+        const accessToken = params.get("access_token");
+
+        console.log("URL parameters:", { type, hasAccessToken: !!accessToken });
+
+        if (type === "recovery" && accessToken) {
+          // Set session with recovery token
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: "",
+          });
+
+          if (error) {
+            console.error("Error setting session:", error);
+            setMessage({
+              text: "Your password reset link is invalid or has expired. Please request a new one.",
+              type: "error",
+            });
+            return;
+          }
+
+          console.log("Recovery session established successfully");
+          setResetReady(true);
+          setMessage({
+            text: "Please enter your new password",
+            type: "success",
+          });
+        } else {
+          setMessage({
+            text: "Invalid password reset link. Please request a new one.",
+            type: "error",
+          });
+        }
+      } catch (error) {
+        console.error("Reset session check failed:", error);
         setMessage({
-          text: "Please enter your new password",
-          type: "success",
+          text: "An error occurred while processing your password reset. Please try again.",
+          type: "error",
         });
       }
-    }
+    };
+
+    checkResetSession();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate passwords
+    if (password.length < 6) {
+      setMessage({
+        text: "Password must be at least 6 characters long",
+        type: "error",
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage({
+        text: "Passwords do not match",
+        type: "error",
+      });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      console.log("Attempting to update password...");
+
+      const { error, data } = await supabase.auth.updateUser({
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Password update error:", error);
+        throw error;
+      }
+
+      console.log("Password updated successfully:", data);
+
+      // Force sign out after password change
+      await supabase.auth.signOut();
 
       setMessage({
-        text: "Password updated successfully. You can now log in with your new password.",
+        text: "Password updated successfully! You can now log in with your new password.",
         type: "success",
       });
 
       // Redirect to login after a delay
       setTimeout(() => router.push("/login"), 3000);
     } catch (error: any) {
+      console.error("Password reset error:", error);
       setMessage({
         text: error.message || "Failed to reset password",
         type: "error",
@@ -85,43 +159,64 @@ export default function ResetPassword() {
             </div>
           )}
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                New Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="New password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+          {resetReady && (
+            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="password" className="sr-only">
+                  New Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="New password (min 6 characters)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={6}
+                />
+              </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {loading ? "Updating..." : "Reset Password"}
-              </button>
-            </div>
+              <div>
+                <label htmlFor="confirm-password" className="sr-only">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirm-password"
+                  name="confirm-password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  minLength={6}
+                />
+              </div>
 
-            <div className="text-center">
-              <Link
-                href="/login"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Back to login
-              </Link>
-            </div>
-          </form>
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loading ? "Updating..." : "Reset Password"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="text-center mt-4">
+            <Link
+              href="/login"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Back to login
+            </Link>
+          </div>
         </div>
       </div>
     </>
