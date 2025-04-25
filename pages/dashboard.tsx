@@ -1227,7 +1227,9 @@ const Dashboard = () => {
   );
 };
 
-export async function getServerSideProps({ req }) {
+import { GetServerSidePropsContext } from "next";
+
+export async function getServerSideProps({ req }: GetServerSidePropsContext) {
   // We'll let the client-side ProtectedRoute component handle authentication
   // This simplifies the server-side logic
   return { props: {} };
