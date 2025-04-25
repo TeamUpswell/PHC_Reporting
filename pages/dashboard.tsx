@@ -66,6 +66,14 @@ interface SummaryData {
   recentReports: number;
 }
 
+interface RecentCenterReport {
+  id: string;
+  reporting_month: string;
+  healthcare_center: HealthcareCenter | null;
+  total_vaccinations: number;
+  created_at: string;
+}
+
 const DashboardSkeleton = () => (
   <div>
     <div className="mb-8 flex justify-between items-center">
@@ -157,7 +165,9 @@ export default function Dashboard() {
     recentReports: 0,
   });
 
-  const [recentCenterReports, setRecentCenterReports] = useState([]);
+  const [recentCenterReports, setRecentCenterReports] = useState<
+    RecentCenterReport[]
+  >([]);
 
   const handleStateChange = useCallback((newState: string) => {
     setSelectedState(newState);
@@ -379,7 +389,7 @@ export default function Dashboard() {
       console.log("Recent center data:", recentCenterData);
 
       // Transform the data to match your component's expectations
-      const transformedReports =
+      const transformedReports: RecentCenterReport[] =
         recentCenterData?.map((report) => {
           // Calculate total vaccinations for this report
           let reportVaccinations = 0;
@@ -397,11 +407,11 @@ export default function Dashboard() {
           }
 
           return {
-            id: report.id,
-            reporting_month: report.report_month,
-            healthcare_center: report.healthcare_center,
+            id: report.id || "",
+            reporting_month: report.report_month || "",
+            healthcare_center: report.healthcare_center || null,
             total_vaccinations: reportVaccinations,
-            created_at: report.created_at,
+            created_at: report.created_at || "",
           };
         }) || [];
 
@@ -741,7 +751,7 @@ export default function Dashboard() {
                     >
                       <path
                         fillRule="evenodd"
-                        d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
+                        d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6-6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
                       />
                     </svg>
                   </button>
