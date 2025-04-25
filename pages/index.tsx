@@ -1,225 +1,211 @@
-import { useState, useEffect, useMemo } from "react";
-import Head from "next/head";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
+import Head from "next/head";
 import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types";
+import dynamic from "next/dynamic";
 
-export default function Home() {
+// Dynamically import the map component
+const MapComponent = dynamic(() => import("../components/Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+      Loading map...
+    </div>
+  ),
+});
+
+export default function Centers() {
+  const router = useRouter();
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterState, setFilterState] = useState<string>("");
-  const [states, setStates] = useState<string[]>([]);
-  const [showTreatmentOnly, setShowTreatmentOnly] = useState(false);
+  const [filterTreatment, setFilterTreatment] = useState<boolean | null>(null);
+  const [filteredCenters, setFilteredCenters] = useState<HealthcareCenter[]>(
+    []
+  );
 
-  const fetchCenters = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("healthcare_centers")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-
-      if (data) {
-        setCenters(data);
-
-        const uniqueStates = Array.from(
-          new Set(data.map((center) => center.state).filter(Boolean))
-        );
-        setStates(uniqueStates);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch centers on component mount
   useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("healthcare_centers")
+          .select("*")
+          .order("name");
+
+        if (error) {
+          throw error;
+        }
+
+        setCenters(data || []);
+      } catch (err: any) {
+        console.error("Error fetching centers:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCenters();
   }, []);
 
-  const filteredCenters = useMemo(() => {
-    return centers.filter((center) => {
+  // Apply filters whenever centers, search term or treatment filter changes
+  useEffect(() => {
+    const filtered = centers.filter((center) => {
+      // Apply text search filter
       const matchesSearch =
+        searchTerm === "" ||
         center.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (center.state?.toLowerCase() || "").includes(
-          searchTerm.toLowerCase()
-        ) ||
-        (center.lga?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+        center.area?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        center.lga?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesState = !filterState || center.state === filterState;
+      // Apply treatment area filter
+      const matchesTreatment =
+        filterTreatment === null ||
+        center.is_treatment_area === filterTreatment;
 
-      const matchesTreatment = !showTreatmentOnly || center.is_treatment_area;
-
-      return matchesSearch && matchesState && matchesTreatment;
+      return matchesSearch && matchesTreatment;
     });
-  }, [centers, searchTerm, filterState, showTreatmentOnly]);
+
+    setFilteredCenters(filtered);
+  }, [centers, searchTerm, filterTreatment]);
+
+  const handleCenterSelect = (center: HealthcareCenter) => {
+    router.push(`/center/${center.id}`);
+  };
 
   return (
-    <>
-      <main className="min-h-screen bg-gray-50">
-        <Head>
-          <title>PHC Data Collection - HPV Vaccination Tracking</title>
-          <meta
-            name="description"
-            content="Track HPV vaccination data at healthcare centers in Nigeria"
-          />
-        </Head>
+    <div className="min-h-screen bg-gray-50">
+      <Head>
+        <title>Healthcare Centers - HPV Vaccination Reports</title>
+        <meta
+          name="description"
+          content="View and manage healthcare centers participating in the HPV vaccination program"
+        />
+      </Head>
 
-        <div className="container mx-auto px-4 py-8">
-          <header className="mb-8 flex items-center space-x-4">
-            <div className="w-16 md:w-20">
-              <img
-                src="/images/vital_logo.jpg"
-                alt="VITAL Logo"
-                className="w-full h-auto"
-              />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-blue-800 mb-2">
-                Vital HPV Vaccination Tracking
-              </h1>
-              <p className="text-gray-600">
-                Track and manage HPV vaccination data across healthcare centers
-              </p>
-            </div>
-          </header>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-800 mb-4 md:mb-0">
+            Healthcare Centers
+          </h1>
+          <Link
+            href="/add-center"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block text-center"
+          >
+            Add New Center
+          </Link>
+        </div>
 
-          <div className="mb-6 flex flex-col sm:flex-row gap-4">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-grow">
+              <label htmlFor="search" className="sr-only">
+                Search
+              </label>
               <input
                 type="text"
-                placeholder="Search centers by name, state or LGA..."
+                id="search"
+                placeholder="Search by name, area, or LGA..."
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border rounded-md"
               />
             </div>
-
-            <div className="sm:w-48">
+            <div className="flex items-center space-x-2">
+              <span>Treatment Area:</span>
               <select
-                value={filterState}
-                onChange={(e) => setFilterState(e.target.value)}
-                className="w-full px-4 py-2 border rounded-md"
+                value={
+                  filterTreatment === null ? "all" : filterTreatment.toString()
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "all") {
+                    setFilterTreatment(null);
+                  } else {
+                    setFilterTreatment(value === "true");
+                  }
+                }}
+                className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All States</option>
-                {states.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
+                <option value="all">All</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
               </select>
             </div>
-
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showTreatmentOnly}
-                onChange={() => setShowTreatmentOnly(!showTreatmentOnly)}
-                className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <span className="text-gray-700">Treatment centers</span>
-            </label>
-
-            <Link
-              href="/add-center"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-center"
-            >
-              Add New Center
-            </Link>
           </div>
 
+          <div className="text-gray-600 mt-2">
+            {filteredCenters.length} centers found
+          </div>
+        </div>
+
+        {/* Map View */}
+        {filteredCenters.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+            <h2 className="text-xl font-semibold p-4 bg-gray-50 border-b">
+              Center Locations
+            </h2>
+            <div className="h-96">
+              <MapComponent
+                centers={filteredCenters}
+                height="100%"
+                onCenterSelect={handleCenterSelect}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Centers List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="text-xl text-gray-500">Loading centers...</div>
+            <div className="col-span-3 text-center py-8">
+              Loading centers...
             </div>
           ) : error ? (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              Error: {error}
+            <div className="col-span-3 bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
+              {error}
             </div>
           ) : filteredCenters.length === 0 ? (
-            <div className="text-center p-8 bg-white rounded-lg shadow">
-              <p className="text-gray-500">No healthcare centers found.</p>
-              {searchTerm || filterState || showTreatmentOnly ? (
-                <button
-                  onClick={() => {
-                    setSearchTerm("");
-                    setFilterState("");
-                    setShowTreatmentOnly(false);
-                  }}
-                  className="mt-2 text-blue-600 hover:underline"
-                >
-                  Clear filters
-                </button>
-              ) : (
-                <Link
-                  href="/add-center"
-                  className="mt-2 text-blue-600 hover:underline"
-                >
-                  Add your first center
-                </Link>
-              )}
+            <div className="col-span-3 text-center py-8">
+              No centers found matching your search criteria.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCenters.map((center) => (
-                <div
-                  key={center.id}
-                  className="bg-white rounded-lg shadow overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  <div className="p-5">
-                    <h2 className="text-xl font-semibold mb-2">
-                      {center.name}
-                    </h2>
-                    <p className="text-gray-600 text-sm mb-1">
-                      State: {center.state || "N/A"}
-                    </p>
-                    <p className="text-gray-600 text-sm mb-1">
-                      LGA: {center.lga || "N/A"}
-                    </p>
-                    <p className="text-gray-600 text-sm mb-3">
-                      {center.address}
-                    </p>
-
-                    {center.vaccination_days && (
-                      <p className="text-sm text-gray-700">
-                        <span className="font-medium">Vaccination days:</span>{" "}
-                        {center.vaccination_days}
-                      </p>
-                    )}
-
+            filteredCenters.map((center) => (
+              <Link
+                href={`/center/${center.id}`}
+                key={center.id}
+                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden"
+              >
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-blue-800 mb-2">
+                    {center.name}
+                  </h2>
+                  <p className="text-gray-600 mb-1">
+                    <span className="font-medium">Area:</span> {center.area}
+                  </p>
+                  <p className="text-gray-600 mb-1">
+                    <span className="font-medium">LGA:</span> {center.lga}
+                  </p>
+                  <p className="text-gray-600 mb-2">
+                    <span className="font-medium">Treatment Area:</span>{" "}
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      className={
                         center.is_treatment_area
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                          ? "text-green-600"
+                          : "text-gray-500"
+                      }
                     >
-                      {center.is_treatment_area ? "Treatment Area" : "Control"}
+                      {center.is_treatment_area ? "Yes" : "No"}
                     </span>
-
-                    <div className="mt-4 flex justify-between">
-                      <Link
-                        href={`/center/${center.id}`}
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        View Reports
-                      </Link>
-                      <Link
-                        href={`/center/edit/${center.id}`}
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        Edit Center
-                      </Link>
-                    </div>
-                  </div>
+                  </p>
                 </div>
-              ))}
-            </div>
+              </Link>
+            ))
           )}
         </div>
       </main>
@@ -227,6 +213,6 @@ export default function Home() {
       <footer className="bg-blue-900 text-white text-center p-4 mt-12">
         <p>PHC Data Collection - HPV Vaccination Tracking System</p>
       </footer>
-    </>
+    </div>
   );
 }
