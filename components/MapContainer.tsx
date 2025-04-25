@@ -202,10 +202,12 @@ const MapMarkers: React.FC<MapContainerProps> = ({
             closeButton: true,
             className: "custom-popup",
             maxWidth: 300,
-            autoClose: false, // Prevent auto-closing
+            autoPan: true, // Enable auto-panning to keep popup in view
+            autoPanPaddingTopLeft: L.point(50, 50), // Add padding from the edges
+            autoPanPaddingBottomRight: L.point(50, 50), // Add padding from the edges
+            keepInView: true, // Keep the popup within the map view
             closeOnClick: false, // Prevent closing when clicking elsewhere
             closeOnEscapeKey: true, // Allow closing with Escape key
-            autoPan: false, // Critical: prevent auto-panning when opened or updated
           }).setContent(popupContent);
 
           marker.bindPopup(popup);
@@ -302,9 +304,18 @@ const MapMarkers: React.FC<MapContainerProps> = ({
             }
           });
 
-          // Update the marker click handler to ONLY open the popup
+          // Update the marker click handler to force the map to recenter
           marker.on("click", function () {
-            marker.openPopup();
+            // First, pan the map to center on this marker
+            map.panTo([Number(center.latitude), Number(center.longitude)], {
+              animate: true,
+              duration: 0.5,
+            });
+
+            // Add a small delay before opening the popup to ensure smooth animation
+            setTimeout(() => {
+              marker.openPopup();
+            }, 100);
           });
 
           // Add mouseover effect for better feedback
@@ -440,3 +451,4 @@ const MapContent: React.FC<MapContainerProps> = (props) => {
 };
 
 export default MapContent;
+// Updated popup behavior
