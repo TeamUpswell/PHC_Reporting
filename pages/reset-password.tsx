@@ -15,23 +15,64 @@ export default function ResetPassword() {
   const [resetReady, setResetReady] = useState(false);
   const router = useRouter();
 
-  // Check for valid reset session
+  // Enhanced check for valid reset session
   useEffect(() => {
     const checkResetSession = async () => {
       try {
         console.log("Checking reset session...");
+        console.log("Full URL:", window.location.href);
 
         // Force logout any existing sessions
         await supabase.auth.signOut();
 
-        // Check for recovery token in URL
+        // Look for token in both hash and query parameters
+        // Check URL hash first (fragment identifier)
+        let accessToken = null;
+        let type = null;
+
+        // Try to get token from URL hash
         const hash = window.location.hash.substring(1);
-        const params = new URLSearchParams(hash);
-        const type = params.get("type");
-        const accessToken = params.get("access_token");
+        if (hash) {
+          const hashParams = new URLSearchParams(hash);
+          type = hashParams.get("type");
+          accessToken = hashParams.get("access_token");
+          console.log("Found in hash:", { type, hasToken: !!accessToken });
+        }
 
-        console.log("URL parameters:", { type, hasAccessToken: !!accessToken });
+        // If not in hash, try URL query parameters
+        if (!accessToken) {
+          const queryParams = new URLSearchParams(window.location.search);
+          const token = queryParams.get("token");
+          type = queryParams.get("type");
 
+          if (token && type === "recovery") {
+            console.log("Found token in query params");
+            // This is the direct Supabase link format - we need to handle this case
+
+            // Try to exchange the token for a session
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: token,
+              type: "recovery",
+            });
+
+            if (error) {
+              console.error("Error verifying OTP:", error);
+              throw error;
+            }
+
+            if (data?.session) {
+              console.log("Successfully created session from token");
+              setResetReady(true);
+              setMessage({
+                text: "Please enter your new password",
+                type: "success",
+              });
+              return;
+            }
+          }
+        }
+
+        // If we have an access_token from the hash
         if (type === "recovery" && accessToken) {
           // Set session with recovery token
           const { error } = await supabase.auth.setSession({
@@ -54,14 +95,16 @@ export default function ResetPassword() {
             text: "Please enter your new password",
             type: "success",
           });
-        } else {
-          setMessage({
-            text: "Invalid password reset link. Please request a new one.",
-            type: "error",
-          });
+          return;
         }
+
+        // If we got here, no valid token was found
+        setMessage({
+          text: "Invalid password reset link. Please request a new one.",
+          type: "error",
+        });
       } catch (error) {
-        console.error("Reset session check failed:", error);
+        console.error("Reset session error:", error);
         setMessage({
           text: "An error occurred while processing your password reset. Please try again.",
           type: "error",
@@ -107,7 +150,7 @@ export default function ResetPassword() {
         throw error;
       }
 
-      console.log("Password updated successfully:", data);
+      console.log("Password updated successfully");
 
       // Force sign out after password change
       await supabase.auth.signOut();
