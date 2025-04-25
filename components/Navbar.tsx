@@ -19,6 +19,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex space-x-4">
+            {/* EXPLICITLY USING "Centers" HERE */}
             <Link
               href="/"
               className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
@@ -29,7 +30,7 @@ const Navbar = () => {
                   : ""
               }`}
             >
-              Map
+              Centers
             </Link>
             <Link
               href="/dashboard"
