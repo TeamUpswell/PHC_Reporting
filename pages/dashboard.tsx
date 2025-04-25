@@ -223,7 +223,7 @@ const Dashboard = () => {
 
       // Get centers count
       const { data: centers, error: centersError } = await supabase
-        .from("healthcare_centers")
+        .from("healthcare_centers") // Make sure this matches your table name exactly
         .select("*");
 
       if (centersError) {
@@ -242,23 +242,20 @@ const Dashboard = () => {
 
       console.log("Date range:", { selectedMonthStart, selectedMonthEnd });
 
-      // Get monthly reports with healthcare center info included
-      const { data: reportsWithCenters, error } = await supabase
+      // Get monthly reports for the selected month
+      // Note: Updating to match your actual table structure
+      const { data: monthlyReports, error } = await supabase
         .from("monthly_reports")
         .select(
           `
-          id,
-          report_month,
-          total_vaccinations,
-          total_doses,
-          dose1_count,
-          dose2_count,
-          healthcare_center:center_id(
-            id, 
-            name,
-            is_treatment_area
-          )
-        `
+        id,
+        report_month,
+        fixed_doses,
+        outreach_doses,
+        total_doses,
+        center_id,
+        center_name
+      `
         )
         .gte("report_month", selectedMonthStart)
         .lte("report_month", selectedMonthEnd);
@@ -268,51 +265,48 @@ const Dashboard = () => {
         throw error;
       }
 
-      console.log("Selected month reports:", reportsWithCenters?.length);
+      console.log("Selected month reports:", monthlyReports?.length || 0);
 
-      // Calculate vaccinations by center type for the selected month only
+      // Calculate vaccinations by center type for the selected month
       let totalVaccinations = 0;
       let treatmentVaccinations = 0;
       let controlVaccinations = 0;
 
-      if (reportsWithCenters && reportsWithCenters.length > 0) {
-        reportsWithCenters.forEach((report) => {
-          // Get the healthcare center data - fix the type issue
-          const center = report.healthcare_center;
+      if (monthlyReports && monthlyReports.length > 0) {
+        // Create a map of center IDs to their treatment status for quick lookup
+        const centerTreatmentMap = new Map();
+        centers?.forEach((center) => {
+          centerTreatmentMap.set(center.id, center.is_treatment_area);
+        });
 
+        monthlyReports.forEach((report) => {
           // Calculate total vaccinations for this report
           let reportVaccinations = 0;
 
           // Use the most specific data available
-          if (typeof report.total_vaccinations === "number") {
-            reportVaccinations = report.total_vaccinations;
-          } else if (typeof report.total_doses === "number") {
+          if (typeof report.total_doses === "number") {
             reportVaccinations = report.total_doses;
           } else {
-            // Fall back to calculating from individual dose counts
-            const dose1 =
-              typeof report.dose1_count === "number" ? report.dose1_count : 0;
-            const dose2 =
-              typeof report.dose2_count === "number" ? report.dose2_count : 0;
-            reportVaccinations = dose1 + dose2;
+            // Fall back to calculating from fixed and outreach doses
+            const fixedDoses =
+              typeof report.fixed_doses === "number" ? report.fixed_doses : 0;
+            const outreachDoses =
+              typeof report.outreach_doses === "number"
+                ? report.outreach_doses
+                : 0;
+            reportVaccinations = fixedDoses + outreachDoses;
           }
 
           // Add to total vaccinations
           totalVaccinations += reportVaccinations;
 
           // Add to treatment or control based on center type
-          // FIX: Check if center is an array and handle appropriately
-          if (center) {
-            // If center is an array, use the first item
-            const centerData = Array.isArray(center) ? center[0] : center;
+          // Using the map we created for quick lookup
+          const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
 
-            if (centerData && centerData.is_treatment_area === true) {
-              treatmentVaccinations += reportVaccinations;
-            } else {
-              controlVaccinations += reportVaccinations;
-            }
+          if (isTreatmentCenter === true) {
+            treatmentVaccinations += reportVaccinations;
           } else {
-            // If no center data, default to control
             controlVaccinations += reportVaccinations;
           }
         });
@@ -323,9 +317,91 @@ const Dashboard = () => {
         total: totalVaccinations,
         treatment: treatmentVaccinations,
         control: controlVaccinations,
+        reportCount: monthlyReports?.length || 0,
       });
 
-      // Rest of your function remains the same...
+      // Calculate previous month data and growth percentages
+      const prevMonth = subMonths(selectedDate, 1);
+      const prevMonthStart = format(startOfMonth(prevMonth), "yyyy-MM-01");
+      const prevMonthEnd = format(endOfMonth(prevMonth), "yyyy-MM-dd");
+
+      const { data: prevMonthReports } = await supabase
+        .from("monthly_reports")
+        .select(
+          `
+        id,
+        report_month,
+        fixed_doses,
+        outreach_doses,
+        total_doses,
+        center_id
+      `
+        )
+        .gte("report_month", prevMonthStart)
+        .lte("report_month", prevMonthEnd);
+
+      // Process previous month data
+      let prevTreatmentVaccinations = 0;
+      let prevControlVaccinations = 0;
+
+      if (prevMonthReports && prevMonthReports.length > 0) {
+        // Use the same center treatment map from above
+        prevMonthReports.forEach((report) => {
+          let reportVaccinations = 0;
+
+          if (typeof report.total_doses === "number") {
+            reportVaccinations = report.total_doses;
+          } else {
+            const fixedDoses =
+              typeof report.fixed_doses === "number" ? report.fixed_doses : 0;
+            const outreachDoses =
+              typeof report.outreach_doses === "number"
+                ? report.outreach_doses
+                : 0;
+            reportVaccinations = fixedDoses + outreachDoses;
+          }
+
+          const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
+
+          if (isTreatmentCenter === true) {
+            prevTreatmentVaccinations += reportVaccinations;
+          } else {
+            prevControlVaccinations += reportVaccinations;
+          }
+        });
+      }
+
+      // Calculate growth percentages
+      let treatmentGrowthPercent = 0;
+      let controlGrowthPercent = 0;
+
+      if (prevTreatmentVaccinations > 0) {
+        treatmentGrowthPercent =
+          ((treatmentVaccinations - prevTreatmentVaccinations) /
+            prevTreatmentVaccinations) *
+          100;
+      }
+
+      if (prevControlVaccinations > 0) {
+        controlGrowthPercent =
+          ((controlVaccinations - prevControlVaccinations) /
+            prevControlVaccinations) *
+          100;
+      }
+
+      console.log("Growth calculations:", {
+        treatmentGrowth: treatmentGrowthPercent.toFixed(1) + "%",
+        controlGrowth: controlGrowthPercent.toFixed(1) + "%",
+      });
+
+      // Get recent reports count
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { count: recentReportsCount } = await supabase
+        .from("monthly_reports")
+        .select("id", { count: "exact" })
+        .gte("created_at", thirtyDaysAgo.toISOString());
 
       // Update the state with the correct data
       setSummaryData({
@@ -335,11 +411,11 @@ const Dashboard = () => {
         totalVaccinations,
         treatmentVaccinations,
         controlVaccinations,
-        treatmentGrowthPercent: 0, // Placeholder for growth percent
-        controlGrowthPercent: 0, // Placeholder for growth percent
-        prevTreatmentVaccinations: 0, // Placeholder for previous month data
-        prevControlVaccinations: 0, // Placeholder for previous month data
-        recentReports: 0, // Placeholder for recent reports count
+        treatmentGrowthPercent,
+        controlGrowthPercent,
+        prevTreatmentVaccinations,
+        prevControlVaccinations,
+        recentReports: recentReportsCount || 0,
       });
     } catch (error) {
       console.error("Error in fetchSummaryData:", error);
