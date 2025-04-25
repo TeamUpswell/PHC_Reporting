@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
-import { HealthcareCenter } from "../types"; // Updated import
+import { HealthcareCenter } from "../types";
 
 export default function Home() {
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterState, setFilterState] = useState<string>(""); // Changed from filterArea
-  const [states, setStates] = useState<string[]>([]); // Changed from areas
+  const [filterState, setFilterState] = useState<string>("");
+  const [states, setStates] = useState<string[]>([]);
+  const [showTreatmentOnly, setShowTreatmentOnly] = useState(false);
 
-  // Function to fetch all centers
   const fetchCenters = async () => {
     setLoading(true);
     try {
@@ -26,7 +26,6 @@ export default function Home() {
       if (data) {
         setCenters(data);
 
-        // Extract unique states for filtering instead of areas
         const uniqueStates = Array.from(
           new Set(data.map((center) => center.state).filter(Boolean))
         );
@@ -43,17 +42,22 @@ export default function Home() {
     fetchCenters();
   }, []);
 
-  // Filter centers based on search term and state filter (instead of area)
-  const filteredCenters = centers.filter((center) => {
-    const matchesSearch =
-      center.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (center.state?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-      (center.lga?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+  const filteredCenters = useMemo(() => {
+    return centers.filter((center) => {
+      const matchesSearch =
+        center.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (center.state?.toLowerCase() || "").includes(
+          searchTerm.toLowerCase()
+        ) ||
+        (center.lga?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
-    const matchesState = !filterState || center.state === filterState; // Changed from area to state
+      const matchesState = !filterState || center.state === filterState;
 
-    return matchesSearch && matchesState;
-  });
+      const matchesTreatment = !showTreatmentOnly || center.is_treatment_area;
+
+      return matchesSearch && matchesState && matchesTreatment;
+    });
+  }, [centers, searchTerm, filterState, showTreatmentOnly]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -66,21 +70,29 @@ export default function Home() {
       </Head>
 
       <main className="container mx-auto px-4 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">
-            PHC HPV Vaccination Tracking
-          </h1>
-          <p className="text-gray-600">
-            Track and manage HPV vaccination data across healthcare centers
-          </p>
+        <header className="mb-8 flex items-center space-x-4">
+          <div className="w-16 md:w-20">
+            <img
+              src="/images/vital_logo.jpg"
+              alt="VITAL Logo"
+              className="w-full h-auto"
+            />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-blue-800 mb-2">
+              Vital HPV Vaccination Tracking
+            </h1>
+            <p className="text-gray-600">
+              Track and manage HPV vaccination data across healthcare centers
+            </p>
+          </div>
         </header>
 
-        {/* Search and Filter Controls */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
           <div className="flex-grow">
             <input
               type="text"
-              placeholder="Search centers by name, state or LGA..." // Updated placeholder
+              placeholder="Search centers by name, state or LGA..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-2 border rounded-md"
@@ -93,8 +105,7 @@ export default function Home() {
               onChange={(e) => setFilterState(e.target.value)}
               className="w-full px-4 py-2 border rounded-md"
             >
-              <option value="">All States</option>{" "}
-              {/* Changed from All Areas */}
+              <option value="">All States</option>
               {states.map((state) => (
                 <option key={state} value={state}>
                   {state}
@@ -102,6 +113,16 @@ export default function Home() {
               ))}
             </select>
           </div>
+
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showTreatmentOnly}
+              onChange={() => setShowTreatmentOnly(!showTreatmentOnly)}
+              className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-gray-700">Treatment centers</span>
+          </label>
 
           <Link
             href="/add-center"
@@ -111,7 +132,6 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Centers List */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-xl text-gray-500">Loading centers...</div>
@@ -123,11 +143,12 @@ export default function Home() {
         ) : filteredCenters.length === 0 ? (
           <div className="text-center p-8 bg-white rounded-lg shadow">
             <p className="text-gray-500">No healthcare centers found.</p>
-            {searchTerm || filterState ? (
+            {searchTerm || filterState || showTreatmentOnly ? (
               <button
                 onClick={() => {
                   setSearchTerm("");
                   setFilterState("");
+                  setShowTreatmentOnly(false);
                 }}
                 className="mt-2 text-blue-600 hover:underline"
               >
@@ -152,8 +173,7 @@ export default function Home() {
                 <div className="p-5">
                   <h2 className="text-xl font-semibold mb-2">{center.name}</h2>
                   <p className="text-gray-600 text-sm mb-1">
-                    State: {center.state || "N/A"}{" "}
-                    {/* Changed from Area to State */}
+                    State: {center.state || "N/A"}
                   </p>
                   <p className="text-gray-600 text-sm mb-1">
                     LGA: {center.lga || "N/A"}
@@ -171,10 +191,10 @@ export default function Home() {
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       center.is_treatment_area
                         ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
+                        : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {center.is_treatment_area ? "Treatment Area" : "Standard"}
+                    {center.is_treatment_area ? "Treatment Area" : "Control"}
                   </span>
 
                   <div className="mt-4 flex justify-between">

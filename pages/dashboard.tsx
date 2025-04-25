@@ -16,6 +16,7 @@ import dynamic from "next/dynamic";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { HealthcareCenter, MonthlyReport } from "../types";
+import { toast } from "react-toastify";
 
 const VaccinationChart = dynamic(
   () => import("../components/VaccinationChart"),
@@ -131,6 +132,48 @@ export default function Dashboard() {
   const handleStateChange = useCallback((newState: string) => {
     setSelectedState(newState);
   }, []);
+
+  const handleCenterSelect = useCallback(
+    (center: HealthcareCenter) => {
+      if (center && center.id) {
+        router.push(`/center/${center.id}`);
+      }
+    },
+    [router]
+  );
+
+  const handleTreatmentToggle = async (
+    centerId: string,
+    isTreatment: boolean
+  ) => {
+    try {
+      // Update the center in the database
+      const { error } = await supabase
+        .from("healthcare_centers")
+        .update({ is_treatment_area: isTreatment })
+        .eq("id", centerId);
+
+      if (error) throw error;
+
+      // Update the local state to reflect the change
+      setCenters((prevCenters) =>
+        prevCenters.map((center) =>
+          center.id === centerId
+            ? { ...center, is_treatment_area: isTreatment }
+            : center
+        )
+      );
+
+      // Show success message
+      toast.success(
+        `${isTreatment ? "Added" : "Removed"} treatment status successfully`
+      );
+    } catch (error) {
+      console.error("Failed to update treatment status:", error);
+      toast.error("Failed to update treatment status");
+      throw error; // Re-throw to let the UI handle it
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -531,42 +574,20 @@ export default function Dashboard() {
 
               {/* Map - Full Width - Now below other elements */}
               <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold">Center Locations</h2>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center text-sm space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={showTreatmentAreas}
-                        onChange={(e) =>
-                          setShowTreatmentAreas(e.target.checked)
-                        }
-                        className="h-4 w-4 text-blue-600"
-                      />
-                      <span>Show treatment areas only</span>
-                    </label>
-                    <select
-                      value={selectedState}
-                      onChange={(e) => handleStateChange(e.target.value)}
-                      className="px-3 py-1 border rounded"
-                    >
-                      <option value="all">All States</option>
-                      {Object.keys(stateStats).map((state) => (
-                        <option key={state} value={state}>
-                          {state}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <h2 className="text-xl font-semibold mb-4">
+                  Healthcare Centers Map
+                </h2>
                 <div style={{ height: "500px", width: "100%" }}>
                   <ErrorBoundary
                     fallback={<div>Map could not be displayed</div>}
                   >
                     <Map
                       centers={filteredCenters}
-                      height="100%"
-                      onCenterSelect={(id) => router.push(`/center/${id}`)}
+                      height="500px"
+                      onCenterSelect={(center) => {
+                        console.log("Center clicked:", center.name);
+                      }}
+                      onTreatmentToggle={handleTreatmentToggle}
                     />
                   </ErrorBoundary>
                 </div>

@@ -17,9 +17,15 @@ interface MapProps {
   centers: HealthcareCenter[];
   height?: string;
   onCenterSelect?: (center: HealthcareCenter) => void;
+  onTreatmentToggle?: (centerId: string, isTreatment: boolean) => Promise<void>;
 }
 
-const Map: React.FC<MapProps> = ({ centers, height = "400px", onCenterSelect }) => {
+const Map: React.FC<MapProps> = ({
+  centers,
+  height = "500px",
+  onCenterSelect,
+  onTreatmentToggle,
+}) => {
   useEffect(() => {
     console.log("Centers passed to map:", centers);
     console.log(
@@ -52,16 +58,12 @@ const Map: React.FC<MapProps> = ({ centers, height = "400px", onCenterSelect }) 
   }, []);
 
   return (
-    <div
-      style={{
-        height,
-        width: "100%",
-        position: "relative",
-        overflow: "hidden", // Add this
-      }}
-      className="rounded-lg shadow-md"
-    >
-      <MapWithNoSSR centers={centers} />
+    <div style={{ height, position: "relative" }}>
+      <MapWithNoSSR
+        centers={centers}
+        onCenterSelect={onCenterSelect}
+        onTreatmentToggle={onTreatmentToggle}
+      />
     </div>
   );
 };

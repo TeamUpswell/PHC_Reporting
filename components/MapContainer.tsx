@@ -1,19 +1,13 @@
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMap,
-  Circle,
-  CircleMarker,
-} from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import { HealthcareCenter } from "../types";
-import { useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 interface MapContainerProps {
   centers: HealthcareCenter[];
+  onCenterSelect?: (center: HealthcareCenter) => void;
+  onTreatmentToggle?: (centerId: string, isTreatment: boolean) => Promise<void>;
+  showTreatmentOnly?: boolean; // Add this new prop
 }
 
 // Update the legend dots to match the size
@@ -33,12 +27,10 @@ const Legend = () => (
     <div className="text-sm font-medium mb-2">Legend</div>
     <div className="flex items-center mb-1">
       <div className="w-5 h-5 rounded-full bg-green-500 mr-2"></div>
-      {/* Changed from w-4 h-4 to w-5 h-5 */}
       <span>Treatment Area</span>
     </div>
     <div className="flex items-center">
       <div className="w-5 h-5 rounded-full bg-red-500 mr-2"></div>
-      {/* Changed from w-4 h-4 to w-5 h-5 */}
       <span>Standard Center</span>
     </div>
   </div>
@@ -58,51 +50,314 @@ const MapUpdater = ({ center }: { center: [number, number] }) => {
   return null;
 };
 
-const MapContent: React.FC<MapContainerProps> = ({ centers }) => {
-  // Create custom icons for treatment and non-treatment areas
-  const treatmentIcon = L.divIcon({
-    className: "custom-marker treatment-marker",
-    html: `<div style="background-color: #10B981; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white;"></div>`, // Increased from 14px to 18px
-    iconSize: [18, 18], // Increased from [14, 14]
-    iconAnchor: [9, 9], // Increased from [7, 7] (should be half the size)
-  });
+// Create a Filter Control component that will appear in the top-right corner
+const FilterControl = ({
+  showTreatmentOnly,
+  onToggle,
+}: {
+  showTreatmentOnly: boolean;
+  onToggle: () => void;
+}) => (
+  <div
+    style={{
+      position: "absolute",
+      top: "20px",
+      right: "20px",
+      backgroundColor: "white",
+      padding: "10px",
+      borderRadius: "5px",
+      boxShadow: "0 1px 5px rgba(0,0,0,0.2)",
+      zIndex: 1000,
+    }}
+  >
+    <label className="flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        checked={showTreatmentOnly}
+        onChange={onToggle}
+        className="mr-2 h-4 w-4"
+      />
+      <span className="text-sm font-medium">Show treatment centers only</span>
+    </label>
+  </div>
+);
 
-  const standardIcon = L.divIcon({
-    className: "custom-marker standard-marker",
-    html: `<div style="background-color: #EF4444; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white;"></div>`, // Increased from 12px to 16px
-    iconSize: [16, 16], // Increased from [12, 12]
-    iconAnchor: [8, 8], // Increased from [6, 6] (should be half the size)
-  });
+// Update the MapMarkers component to filter centers based on the prop
+const MapMarkers: React.FC<MapContainerProps> = ({
+  centers,
+  onCenterSelect,
+  onTreatmentToggle,
+  showTreatmentOnly = false, // Default to showing all centers
+}) => {
+  const map = useMap();
+  const markersRef = useRef<L.Marker[]>([]);
 
-  // Fix Leaflet's default icon path issues
+  // Remove all existing markers when component unmounts or dependencies change
   useEffect(() => {
-    // Use type assertion to avoid TypeScript errors
-    const DefaultIcon = L.Icon.Default;
-    const prototype = DefaultIcon.prototype as any;
-    if (prototype._getIconUrl) {
-      delete prototype._getIconUrl;
-    }
-
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl:
-        "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-      iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-      shadowUrl:
-        "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-    });
+    return () => {
+      if (markersRef.current) {
+        markersRef.current.forEach((marker) => {
+          if (marker) marker.remove();
+        });
+        markersRef.current = [];
+      }
+    };
   }, []);
 
+  // Create the markers outside of React's state system to avoid issues
+  useEffect(() => {
+    // First clean up any existing markers
+    if (markersRef.current) {
+      markersRef.current.forEach((marker) => {
+        if (marker) marker.remove();
+      });
+    }
+    markersRef.current = [];
+
+    if (!map) return;
+
+    // Use a small timeout to ensure the map is fully initialized
+    setTimeout(() => {
+      // Filter centers if showTreatmentOnly is true
+      const centersToShow = showTreatmentOnly
+        ? centers.filter((center) => center.is_treatment_area)
+        : centers;
+
+      // Create marker elements for each center
+      centersToShow.forEach((center) => {
+        if (!center.latitude || !center.longitude) return;
+
+        try {
+          // Simplify marker creation
+          const icon = center.is_treatment_area
+            ? L.divIcon({
+                className: "custom-marker treatment-marker",
+                html: `<div style="background-color: #10B981; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+              })
+            : L.divIcon({
+                className: "custom-marker standard-marker",
+                html: `<div style="background-color: #EF4444; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white;"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+              });
+
+          // Create a simple marker with the icon
+          const marker = L.marker(
+            [Number(center.latitude), Number(center.longitude)],
+            {
+              icon: icon,
+              interactive: true,
+              bubblingMouseEvents: false,
+            }
+          );
+
+          // Create popup content with a clickable link
+          const popupContent = document.createElement("div");
+          popupContent.className = "map-popup p-3";
+
+          // Create the popup HTML content
+          popupContent.innerHTML = `
+            <h3 class="font-bold text-lg mb-2">${center.name}</h3>
+            <p class="text-sm text-gray-600 mb-1">${
+              center.address || "No address provided"
+            }</p>
+            ${
+              center.lga ? `<p class="text-sm mb-1">LGA: ${center.lga}</p>` : ""
+            }
+            ${
+              center.state
+                ? `<p class="text-sm mb-1">State: ${center.state}</p>`
+                : ""
+            }
+            
+            <div class="flex items-center mt-2 mb-2">
+              <input 
+                type="checkbox" 
+                id="treatment-toggle-${center.id}" 
+                class="treatment-toggle mr-2" 
+                ${center.is_treatment_area ? "checked" : ""}
+              />
+              <label for="treatment-toggle-${
+                center.id
+              }" class="text-sm cursor-pointer">
+                Treatment Area
+              </label>
+            </div>
+            
+            <div class="mt-3">
+              <a 
+                href="/center/${center.id}" 
+                class="inline-block px-3 py-2 w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium text-sm rounded"
+                style="text-decoration: none; cursor: pointer;"
+              >
+                View Details
+              </a>
+            </div>
+          `;
+
+          // Create and bind popup with specific options
+          const popup = L.popup({
+            closeButton: true,
+            className: "custom-popup",
+            maxWidth: 300,
+            autoClose: false, // Prevent auto-closing
+            closeOnClick: false, // Prevent closing when clicking elsewhere
+            closeOnEscapeKey: true, // Allow closing with Escape key
+            autoPan: false, // Critical: prevent auto-panning when opened or updated
+          }).setContent(popupContent);
+
+          marker.bindPopup(popup);
+
+          // Add event listener to the checkbox after popup opens
+          marker.on("popupopen", function () {
+            const checkbox = document.getElementById(
+              `treatment-toggle-${center.id}`
+            );
+            if (checkbox && onTreatmentToggle) {
+              // Remove any existing event listeners to avoid duplicates
+              const newCheckbox = checkbox.cloneNode(true);
+              checkbox.parentNode?.replaceChild(newCheckbox, checkbox);
+
+              newCheckbox.addEventListener("change", async function (e) {
+                // Prevent default behavior and stop propagation
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Save map center and zoom before any operations
+                const currentCenter = map.getCenter();
+                const currentZoom = map.getZoom();
+                const currentLatLng = marker.getLatLng();
+
+                // Disable map dragging temporarily
+                const wasMovable = map.dragging.enabled();
+                map.dragging.disable();
+
+                // Get the current state of the checkbox
+                const isChecked = (e.target as HTMLInputElement).checked;
+
+                try {
+                  // Call the handler to update the treatment status
+                  await onTreatmentToggle(center.id, isChecked);
+
+                  // Update UI without closing popup or moving map
+                  const newIcon = isChecked
+                    ? L.divIcon({
+                        className: "custom-marker treatment-marker",
+                        html: `<div style="background-color: #10B981; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10],
+                      })
+                    : L.divIcon({
+                        className: "custom-marker standard-marker",
+                        html: `<div style="background-color: #EF4444; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white;"></div>`,
+                        iconSize: [18, 18],
+                        iconAnchor: [9, 9],
+                      });
+
+                  // Update the icon without moving anything
+                  marker.setIcon(newIcon);
+                  marker.setLatLng(currentLatLng);
+
+                  // Update label
+                  const label = (e.target as HTMLInputElement)
+                    .nextElementSibling;
+                  if (label) {
+                    if (isChecked) {
+                      label.classList.add("text-green-600", "font-medium");
+                      label.classList.remove("text-gray-500");
+                      label.textContent = "Treatment Area ✓";
+                    } else {
+                      label.classList.add("text-gray-500");
+                      label.classList.remove("text-green-600", "font-medium");
+                      label.textContent = "Treatment Area";
+                    }
+                  }
+
+                  // After everything is done, ensure the map hasn't moved
+                  map.setView(currentCenter, currentZoom, { animate: false });
+                } catch (error) {
+                  console.error("Failed to update treatment status:", error);
+                  // Reset checkbox if the update failed
+                  (newCheckbox as HTMLInputElement).checked =
+                    center.is_treatment_area;
+                  alert("Failed to update treatment status. Please try again.");
+                } finally {
+                  // Re-enable map dragging if it was enabled before
+                  if (wasMovable) {
+                    map.dragging.enable();
+                  }
+
+                  // Force popup to stay open and make sure it's properly positioned
+                  setTimeout(() => {
+                    marker.openPopup();
+                    map.setView(currentCenter, currentZoom, { animate: false });
+                  }, 50);
+                }
+
+                // Return false to prevent any default behavior
+                return false;
+              });
+            }
+          });
+
+          // Update the marker click handler to ONLY open the popup
+          marker.on("click", function () {
+            marker.openPopup();
+          });
+
+          // Add mouseover effect for better feedback
+          marker.on("mouseover", function () {
+            marker.setZIndexOffset(1000);
+            marker._icon.style.transform += " scale(1.2)";
+          });
+
+          marker.on("mouseout", function () {
+            marker.setZIndexOffset(0);
+            // Reset transform to original
+            if (marker._icon) {
+              marker._icon.style.transform =
+                marker._icon.style.transform.replace(" scale(1.2)", "");
+            }
+          });
+
+          // Add to map and store reference
+          marker.addTo(map);
+          markersRef.current.push(marker);
+
+          // Force marker to update in the DOM
+          setTimeout(() => {
+            if (marker._icon) {
+              marker._icon.style.zIndex = "1000";
+              marker._icon.style.pointerEvents = "auto";
+            }
+          }, 100);
+        } catch (error) {
+          console.error("Error creating marker:", error);
+        }
+      });
+    }, 100);
+  }, [map, centers, onCenterSelect, onTreatmentToggle, showTreatmentOnly]); // Add showTreatmentOnly to dependencies
+
+  return null;
+};
+
+// Main component that renders the map container
+const MapContent: React.FC<MapContainerProps> = (props) => {
+  const [showTreatmentOnly, setShowTreatmentOnly] = useState(false);
+
   // Find the center of the map
-  const getMapCenter = () => {
+  const getMapCenter = (): [number, number] => {
     // Default to Nigeria's approximate center if no centers
     const defaultCenter: [number, number] = [9.082, 8.6753];
 
-    if (centers.length === 0) {
+    if (props.centers.length === 0) {
       return defaultCenter;
     }
 
     // Get centers with valid lat/lng
-    const validCenters = centers.filter(
+    const validCenters = props.centers.filter(
       (c) =>
         c.latitude !== undefined &&
         c.latitude !== null &&
@@ -127,6 +382,7 @@ const MapContent: React.FC<MapContainerProps> = ({ centers }) => {
     ];
   };
 
+  // Fix: Return the MapContainer directly instead of wrapping it in another div
   return (
     <MapContainer
       center={getMapCenter()}
@@ -139,94 +395,35 @@ const MapContent: React.FC<MapContainerProps> = ({ centers }) => {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
 
-      <MapUpdater center={getMapCenter()} />
-
-      {/* Your dynamic markers - now using latitude and longitude fields */}
-      {centers.map((center) => {
-        try {
-          // Check if center has valid lat/lng
-          if (!center.latitude || !center.longitude) {
-            return null;
-          }
-
-          const lat = Number(center.latitude);
-          const lng = Number(center.longitude);
-
-          // Validate that lat/lng are valid numbers and within range
-          if (
-            isNaN(lat) ||
-            isNaN(lng) ||
-            lat < -90 ||
-            lat > 90 ||
-            lng < -180 ||
-            lng > 180
-          ) {
-            console.log(
-              "Invalid coordinates for center:",
-              center.id,
-              center.name,
-              lat,
-              lng
-            );
-            return null;
-          }
-
-          return (
-            <Marker
-              key={center.id}
-              position={[lat, lng]}
-              icon={center.is_treatment_area ? treatmentIcon : standardIcon}
-            >
-              <Popup>
-                <div className="min-w-[200px]">
-                  <h3 className="font-bold text-lg">{center.name}</h3>
-                  <p className="text-gray-600 text-sm mb-2">{center.address}</p>
-
-                  {/* Show additional details if available */}
-                  {center.state && (
-                    <p className="text-sm text-gray-700">{center.state}</p>
-                  )}
-
-                  <div className="flex items-center mt-1 mb-2">
-                    {center.is_treatment_area ? (
-                      <span className="flex items-center text-green-600 font-medium text-sm">
-                        <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                        Treatment Area
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-red-600 font-medium text-sm">
-                        <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                        Standard Center
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex space-x-2">
-                    <Link
-                      href={`/center/${center.id}`}
-                      className="bg-gray-700 hover:bg-gray-800 text-white text-sm py-1 px-3 rounded transition-colors duration-200"
-                    >
-                      View Details
-                    </Link>
-
-                    <Link
-                      href={`/center/edit/${center.id}`}
-                      className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded transition-colors duration-200"
-                    >
-                      Edit
-                    </Link>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        } catch (error) {
-          console.error("Error rendering marker for center:", center.id, error);
-          return null;
+      {/* Use filtered centers based on showTreatmentOnly */}
+      <MapMarkers
+        {...props}
+        centers={
+          showTreatmentOnly
+            ? props.centers.filter((center) => center.is_treatment_area)
+            : props.centers
         }
-      })}
+      />
 
+      <MapUpdater center={getMapCenter()} />
       <Legend />
+
+      {/* Add FilterControl as a child of MapContainer */}
+      <div className="leaflet-top leaflet-right">
+        <div className="leaflet-control leaflet-bar p-2 bg-white rounded shadow-md">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showTreatmentOnly}
+              onChange={() => setShowTreatmentOnly(!showTreatmentOnly)}
+              className="mr-2 h-4 w-4"
+            />
+            <span className="text-sm font-medium whitespace-nowrap">
+              Treatment centers only
+            </span>
+          </label>
+        </div>
+      </div>
     </MapContainer>
   );
 };

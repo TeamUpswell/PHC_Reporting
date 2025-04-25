@@ -1,10 +1,4 @@
 {
-  "../components/CenterForm.tsx -> ./Map": {
-    "id": "../components/CenterForm.tsx -> ./Map",
-    "files": [
-      "static/chunks/components_Map_tsx.js"
-    ]
-  },
   "../components/Map.tsx -> ./MapContainer": {
     "id": "../components/Map.tsx -> ./MapContainer",
     "files": [
@@ -32,12 +26,6 @@
   "../node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch": {
     "id": "../node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch",
     "files": []
-  },
-  "center/[id].tsx -> ../../components/Map": {
-    "id": "center/[id].tsx -> ../../components/Map",
-    "files": [
-      "static/chunks/components_Map_tsx.js"
-    ]
   },
   "dashboard.tsx -> ../components/Map": {
     "id": "dashboard.tsx -> ../components/Map",

@@ -33,8 +33,24 @@ a {
 
 .leaflet-marker-icon {
   z-index: 1000 !important;
+  cursor: pointer !important;
 }
 
 .leaflet-marker-pane {
   z-index: 600 !important;
+}
+
+/* Enhance popup styling */
+.custom-popup .leaflet-popup-content {
+  min-width: 200px;
+  padding: 0;
+}
+
+.map-popup {
+  padding: 10px;
+}
+
+/* Make the markers more visually distinct */
+.custom-marker {
+  cursor: pointer;
 }
