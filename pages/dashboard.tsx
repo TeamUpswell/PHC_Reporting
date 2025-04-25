@@ -140,7 +140,7 @@ const Dashboard = () => {
           .select(
             `
             id,
-            healthcare_center (
+            healthcare_center:healthcare_center_id (
               id,
               name,
               is_treatment_area
@@ -158,7 +158,18 @@ const Dashboard = () => {
           throw error;
         }
 
-        setRecentCenterReports(monthlyReports || []);
+        // Properly cast and transform the data to match RecentCenterReport type
+        const typedReports: RecentCenterReport[] = monthlyReports
+          ? monthlyReports.map((report: any) => ({
+              id: report.id,
+              healthcare_center: report.healthcare_center || null,
+              created_at: report.created_at,
+              status: report.status,
+              created_by: report.created_by,
+            }))
+          : [];
+
+        setRecentCenterReports(typedReports);
       } catch (error) {
         console.error("Error fetching monthly reports:", error);
       } finally {
