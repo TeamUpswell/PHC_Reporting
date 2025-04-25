@@ -7,6 +7,17 @@ import { HealthcareCenter, MonthlyReport } from "../../types"; // Updated import
 import { format, startOfMonth } from "date-fns";
 import MonthSelector from "../../components/MonthSelector";
 import MonthlyReportForm from "../../components/MonthlyReportForm";
+import dynamic from "next/dynamic";
+
+// Add this dynamic import to prevent SSR issues with the map
+const Map = dynamic(() => import("../../components/Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-72 bg-gray-100 rounded-lg flex items-center justify-center">
+      Loading map...
+    </div>
+  ),
+});
 
 export default function CenterDetail() {
   const router = useRouter();
@@ -239,6 +250,25 @@ export default function CenterDetail() {
             </Link>
           </div>
         </div>
+
+        {center && center.latitude && center.longitude ? (
+          <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
+            <h2 className="text-lg font-medium px-4 py-3 bg-gray-50 border-b">
+              Center Location
+            </h2>
+            <div className="h-72">
+              <Map
+                centers={[center]}
+                height="100%"
+                onCenterSelect={() => {}}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 p-4 bg-gray-50 text-gray-500 rounded-lg text-center">
+            No location coordinates available for this center
+          </div>
+        )}
 
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-blue-800 mb-4">

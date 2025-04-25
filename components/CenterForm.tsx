@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types"; // Updated import
+import dynamic from "next/dynamic"; // Add this import near the top with your other imports
+
+// Add this dynamic import to prevent SSR issues with the map
+const Map = dynamic(() => import("./Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-72 bg-gray-100 rounded-lg flex items-center justify-center">
+      Loading map...
+    </div>
+  ),
+});
 
 declare global {
   interface Window {
@@ -300,6 +311,26 @@ const CenterForm: React.FC<CenterFormProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Add a map to show the location if coordinates are available */}
+      {formData.latitude && formData.longitude ? (
+        <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
+          <h2 className="text-lg font-medium px-4 py-3 bg-gray-50 border-b">
+            Center Location
+          </h2>
+          <div className="h-72">
+            <Map
+              centers={[formData as HealthcareCenter]}
+              height="100%"
+              onCenterSelect={() => {}}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 p-4 bg-gray-50 text-gray-500 rounded-lg text-center">
+          No location coordinates available
+        </div>
+      )}
 
       <div className="flex justify-end space-x-4 mt-6">
         {onCancel && (
