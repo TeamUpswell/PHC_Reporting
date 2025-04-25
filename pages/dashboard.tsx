@@ -1,17 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import useSWR from "swr";
-import {
-  format,
-  subMonths,
-  parseISO,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-} from "date-fns";
+import { format, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -103,39 +96,17 @@ const DashboardSkeleton = () => (
 
 const Dashboard = () => {
   const router = useRouter();
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [recentCenterReports, setRecentCenterReports] = useState<
     RecentCenterReport[]
   >([]);
   const [loading, setLoading] = useState(true);
 
-  const changeMonth = (direction: "prev" | "next") => {
-    setSelectedMonth((prevMonth) =>
-      direction === "prev" ? subMonths(prevMonth, 1) : addMonths(prevMonth, 1)
-    );
-  };
-
   useEffect(() => {
-    const fetchMonthlyReports = async () => {
+    const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // Get the selected month's start and end dates
-        const startDate = startOfMonth(selectedMonth);
-        const endDate = endOfMonth(selectedMonth);
-
-        // Format dates for Supabase query
-        const startDateStr = startDate.toISOString();
-        const endDateStr = endDate.toISOString();
-
-        console.log(
-          `Fetching reports from ${format(
-            startDate,
-            "MMM d, yyyy"
-          )} to ${format(endDate, "MMM d, yyyy")}`
-        );
-
-        // Fetch reports for the selected month
-        const { data: monthlyReports, error } = await supabase
+        // Fetch recent reports without month filtering
+        const { data: recentReports, error } = await supabase
           .from("center_report")
           .select(
             `
@@ -150,17 +121,13 @@ const Dashboard = () => {
             created_by
           `
           )
-          .gte("created_at", startDateStr)
-          .lte("created_at", endDateStr)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(10);
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        // Properly cast and transform the data to match RecentCenterReport type
-        const typedReports: RecentCenterReport[] = monthlyReports
-          ? monthlyReports.map((report: any) => ({
+        const typedReports: RecentCenterReport[] = recentReports
+          ? recentReports.map((report: any) => ({
               id: report.id,
               healthcare_center: report.healthcare_center || null,
               created_at: report.created_at,
@@ -171,16 +138,14 @@ const Dashboard = () => {
 
         setRecentCenterReports(typedReports);
       } catch (error) {
-        console.error("Error fetching monthly reports:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMonthlyReports();
-  }, [selectedMonth]);
-
-  const selectedMonthStr = format(selectedMonth, "MMMM yyyy");
+    fetchDashboardData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -192,28 +157,6 @@ const Dashboard = () => {
             <Head>
               <title>Dashboard - PHC Data Collection</title>
             </Head>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Dashboard</h2>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => changeMonth("prev")}
-                  className="p-2 rounded-md bg-white shadow hover:bg-gray-50"
-                >
-                  ←
-                </button>
-                <span className="font-medium">{selectedMonthStr}</span>
-                <button
-                  onClick={() => changeMonth("next")}
-                  className="p-2 rounded-md bg-white shadow hover:bg-gray-50"
-                  disabled={
-                    selectedMonth.getMonth() === new Date().getMonth() &&
-                    selectedMonth.getFullYear() === new Date().getFullYear()
-                  }
-                >
-                  →
-                </button>
-              </div>
-            </div>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
               <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">
                 Dashboard
@@ -237,9 +180,7 @@ const Dashboard = () => {
             </div>
 
             <div className="mb-8">
-              <h2 className="text-xl font-bold mb-4">
-                Reports for {selectedMonthStr}
-              </h2>
+              <h2 className="text-xl font-bold mb-4">Recent Reports</h2>
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -312,23 +253,13 @@ const Dashboard = () => {
                           colSpan={4}
                           className="px-6 py-4 text-center text-sm text-gray-500"
                         >
-                          No reports found for {selectedMonthStr}
+                          No recent reports found
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            <div className="mb-8">
-              <DashboardCard
-                title="Current Month Reports"
-                value={recentCenterReports.length}
-                icon="clipboard-check"
-                color="teal"
-                subValue={`${selectedMonthStr}`}
-              />
             </div>
           </>
         )}
