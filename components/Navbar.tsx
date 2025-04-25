@@ -202,10 +202,9 @@ const Navbar = () => {
             Reports
           </Link>
           <Link
-            href="/centers"
+            href="/"
             className={`block px-3 py-2 rounded-md text-base font-medium ${
-              router.pathname === "/centers" ||
-              router.pathname.startsWith("/centers/")
+              router.pathname === "/" || router.pathname.startsWith("/center/")
                 ? "bg-blue-900 text-white"
                 : "text-gray-300 hover:bg-blue-700 hover:text-white"
             }`}
