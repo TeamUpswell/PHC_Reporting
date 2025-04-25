@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage<{
+  const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
@@ -26,7 +26,7 @@ export default function ForgotPassword() {
       const siteURL = "https://vstracker.upswell.app"; // Hardcode the production URL
       console.log(`Using site URL for redirects: ${siteURL}`);
 
-      // Use explicit redirect URL 
+      // Use explicit redirect URL
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${siteURL}/reset-password`,
       });
