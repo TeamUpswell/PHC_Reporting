@@ -362,21 +362,7 @@ export default function CenterDetail() {
           </div>
         </div>
 
-        {center && center.latitude && center.longitude ? (
-          <div className="mt-6 bg-white shadow-md rounded-lg overflow-hidden">
-            <h2 className="text-lg font-medium px-4 py-3 bg-gray-50 border-b">
-              Center Location
-            </h2>
-            <div className="h-72">
-              <Map centers={[center]} height="100%" onCenterSelect={() => {}} />
-            </div>
-          </div>
-        ) : (
-          <div className="mt-6 p-4 bg-gray-50 text-gray-500 rounded-lg text-center">
-            No location coordinates available for this center
-          </div>
-        )}
-
+        {/* Month Selector moved above statistics and map */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-blue-800 mb-4">
             Monthly HPV Vaccination Reports
@@ -384,15 +370,8 @@ export default function CenterDetail() {
           <MonthSelector value={selectedMonth} onChange={handleMonthChange} />
         </div>
 
-        <MonthlyReportForm
-          centerId={center.id}
-          centerName={center.name}
-          onSave={handleReportSaved}
-          onCancel={() => setShowReportForm(false)}
-          initialReport={report || undefined}
-        />
-
-        <div className="mt-8">
+        {/* Vaccination Statistics moved above map */}
+        <div className="mb-8">
           <h2 className="text-2xl font-bold text-blue-800 mb-4">
             Vaccination Statistics
           </h2>
@@ -408,12 +387,41 @@ export default function CenterDetail() {
             <DashboardCard
               title="Growth Percentage"
               value={`${centerStats.growthPercent.toFixed(2)}%`}
+              color={centerStats.growthPercent >= 0 ? "green" : "red"}
+              icon={
+                centerStats.growthPercent >= 0 ? "trending-up" : "trending-down"
+              }
             />
           </div>
-          <div className="mt-6">
+          <div className="mt-6 bg-white rounded-lg shadow-md p-6">
             <VaccinationChart data={centerStats.monthlyData} />
           </div>
         </div>
+
+        {/* Map moved below statistics */}
+        {center && center.latitude && center.longitude ? (
+          <div className="mt-6 mb-8 bg-white shadow-md rounded-lg overflow-hidden">
+            <h2 className="text-lg font-medium px-4 py-3 bg-gray-50 border-b">
+              Center Location
+            </h2>
+            <div className="h-72">
+              <Map centers={[center]} height="100%" onCenterSelect={() => {}} />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 mb-8 p-4 bg-gray-50 text-gray-500 rounded-lg text-center">
+            No location coordinates available for this center
+          </div>
+        )}
+
+        {/* Monthly Report Form */}
+        <MonthlyReportForm
+          centerId={center.id}
+          centerName={center.name}
+          onSave={handleReportSaved}
+          onCancel={() => setShowReportForm(false)}
+          initialReport={report || undefined}
+        />
       </main>
 
       {showDeleteModal && (
