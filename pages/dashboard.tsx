@@ -32,7 +32,7 @@ const VaccinationChart = dynamic(
   }
 );
 
-const Map = dynamic(() => import("../components/Map"), {
+const MapComponent = dynamic(() => import("../components/Map"), {
   ssr: false,
   loading: () => (
     <div className="h-96 bg-white rounded-lg shadow-md flex items-center justify-center">
@@ -1048,7 +1048,7 @@ const Dashboard = () => {
                   <ErrorBoundary
                     fallback={<div>Map could not be displayed</div>}
                   >
-                    <Map
+                    <MapComponent
                       centers={filteredCenters}
                       height="500px"
                       onCenterSelect={(center) => {
