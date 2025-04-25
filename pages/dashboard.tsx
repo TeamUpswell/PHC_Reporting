@@ -205,7 +205,10 @@ const Dashboard = () => {
                 <button
                   onClick={() => changeMonth("next")}
                   className="p-2 rounded-md bg-white shadow hover:bg-gray-50"
-                  disabled={selectedMonth > new Date()} // Disable future months
+                  disabled={
+                    selectedMonth.getMonth() === new Date().getMonth() &&
+                    selectedMonth.getFullYear() === new Date().getFullYear()
+                  }
                 >
                   →
                 </button>
