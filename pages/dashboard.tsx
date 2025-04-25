@@ -787,7 +787,7 @@ export default function Dashboard() {
                 title="Total Centers"
                 value={summaryData.totalCenters}
                 icon="🏥"
-                trend={null}
+                trend={undefined}
               />
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center mb-2">
@@ -827,7 +827,7 @@ export default function Dashboard() {
                 title="Total Vaccinations"
                 value={summaryData.totalVaccinations.toLocaleString()}
                 icon="💪"
-                trend={null}
+                trend={undefined}
                 color="blue"
               />
             </div>

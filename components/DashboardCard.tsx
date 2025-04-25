@@ -11,10 +11,10 @@ interface TrendInfo {
 // Update the interface to include subValue
 interface DashboardCardProps {
   title: string;
-  value: number;
-  icon: string;
-  color?: CardColor;
-  trend?: TrendInfo;
+  value: number | string;
+  icon?: string;
+  color?: string;
+  trend?: TrendInfo | null;
   subValue?: string; // Add this line
 }
 
