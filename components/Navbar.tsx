@@ -18,42 +18,34 @@ const Navbar = () => {
             </Link>
           </div>
 
-          <div className="flex">
+          <div className="flex space-x-4">
             <Link
               href="/"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
+              className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
                 isActive("/") &&
                 !isActive("/dashboard") &&
                 !isActive("/reports")
                   ? "bg-blue-900"
-                  : "hover:bg-blue-700"
+                  : ""
               }`}
             >
-              Centers
-            </Link>
-            <Link
-              href="/reports"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive("/reports") ? "bg-blue-900" : "hover:bg-blue-700"
-              }`}
-            >
-              Reports
+              Map
             </Link>
             <Link
               href="/dashboard"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive("/dashboard") ? "bg-blue-900" : "hover:bg-blue-700"
+              className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/dashboard") ? "bg-blue-900" : ""
               }`}
             >
               Dashboard
             </Link>
             <Link
-              href="/add-center"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive("/add-center") ? "bg-blue-900" : "hover:bg-blue-700"
+              href="/reports"
+              className={`text-white hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${
+                isActive("/reports") ? "bg-blue-900" : ""
               }`}
             >
-              Add Center
+              Reports
             </Link>
           </div>
         </div>
