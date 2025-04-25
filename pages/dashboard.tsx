@@ -16,7 +16,9 @@ import dynamic from "next/dynamic";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { HealthcareCenter, MonthlyReport } from "../types";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
+import ProtectedRoute from "../components/ProtectedRoute";
+import "react-toastify/dist/ReactToastify.css";
 
 const VaccinationChart = dynamic(
   () => import("../components/VaccinationChart"),
@@ -95,7 +97,7 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-export default function Dashboard() {
+const Dashboard = () => {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState({
@@ -238,16 +240,21 @@ export default function Dashboard() {
       const selectedMonthStart = format(selectedDate, "yyyy-MM-01");
       const selectedMonthEnd = format(endOfMonth(selectedDate), "yyyy-MM-dd");
 
-      // Get reports for the selected month only
-      const { data: reportsWithCenters, error: reportsError } = await supabase
+      // Example of consolidated query for reports and centers
+      const { data: reportsWithCenters, error } = await supabase
         .from("monthly_reports")
-        .select(`*, center:center_id(id, is_treatment_area)`)
+        .select(
+          `
+          *,
+          healthcare_center:center_id(*)
+        `
+        )
         .gte("report_month", selectedMonthStart)
         .lte("report_month", selectedMonthEnd);
 
-      if (reportsError) {
-        console.error("Error fetching reports:", reportsError);
-        throw reportsError;
+      if (error) {
+        console.error("Error fetching reports:", error);
+        throw error;
       }
 
       console.log("Selected month reports:", reportsWithCenters?.length);
@@ -453,7 +460,8 @@ export default function Dashboard() {
       );
     } catch (error) {
       console.error("Error in fetchSummaryData:", error);
-      // Don't throw here, just log it
+      toast.error("Failed to load summary data. Please try again.");
+      // Don't throw here, just notify the user
     }
   }, [selectedDate]);
 
@@ -1217,4 +1225,12 @@ export default function Dashboard() {
       </main>
     </div>
   );
+};
+
+export async function getServerSideProps({ req }) {
+  // We'll let the client-side ProtectedRoute component handle authentication
+  // This simplifies the server-side logic
+  return { props: {} };
 }
+
+export default Dashboard;
