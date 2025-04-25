@@ -56,3 +56,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+// Comment added to force Git to recognize changes
