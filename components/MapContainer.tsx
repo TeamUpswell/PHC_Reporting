@@ -310,15 +310,25 @@ const MapMarkers: React.FC<MapContainerProps> = ({
           // Add mouseover effect for better feedback
           marker.on("mouseover", function () {
             marker.setZIndexOffset(1000);
-            marker._icon.style.transform += " scale(1.2)";
+
+            // Type-safe access to the icon element
+            const icon = marker.getElement();
+            if (icon && icon instanceof HTMLElement) {
+              icon.style.transform += " scale(1.2)";
+              icon.style.transition = "transform 0.2s";
+            }
           });
 
           marker.on("mouseout", function () {
             marker.setZIndexOffset(0);
-            // Reset transform to original
-            if (marker._icon) {
-              marker._icon.style.transform =
-                marker._icon.style.transform.replace(" scale(1.2)", "");
+
+            // Type-safe access to the icon element
+            const icon = marker.getElement();
+            if (icon && icon instanceof HTMLElement) {
+              icon.style.transform = icon.style.transform.replace(
+                " scale(1.2)",
+                ""
+              );
             }
           });
 
@@ -328,9 +338,10 @@ const MapMarkers: React.FC<MapContainerProps> = ({
 
           // Force marker to update in the DOM
           setTimeout(() => {
-            if (marker._icon) {
-              marker._icon.style.zIndex = "1000";
-              marker._icon.style.pointerEvents = "auto";
+            const icon = marker.getElement();
+            if (icon && icon instanceof HTMLElement) {
+              icon.style.zIndex = "1000";
+              icon.style.pointerEvents = "auto";
             }
           }, 100);
         } catch (error) {
