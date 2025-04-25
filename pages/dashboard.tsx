@@ -277,7 +277,7 @@ const Dashboard = () => {
 
       if (reportsWithCenters && reportsWithCenters.length > 0) {
         reportsWithCenters.forEach((report) => {
-          // Get the healthcare center data
+          // Get the healthcare center data - fix the type issue
           const center = report.healthcare_center;
 
           // Calculate total vaccinations for this report
@@ -301,9 +301,18 @@ const Dashboard = () => {
           totalVaccinations += reportVaccinations;
 
           // Add to treatment or control based on center type
-          if (center && center.is_treatment_area === true) {
-            treatmentVaccinations += reportVaccinations;
+          // FIX: Check if center is an array and handle appropriately
+          if (center) {
+            // If center is an array, use the first item
+            const centerData = Array.isArray(center) ? center[0] : center;
+
+            if (centerData && centerData.is_treatment_area === true) {
+              treatmentVaccinations += reportVaccinations;
+            } else {
+              controlVaccinations += reportVaccinations;
+            }
           } else {
+            // If no center data, default to control
             controlVaccinations += reportVaccinations;
           }
         });
