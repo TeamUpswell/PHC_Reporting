@@ -29,7 +29,7 @@ const Navbar = () => {
                   : ""
               }`}
             >
-              Map
+              Centers
             </Link>
             <Link
               href="/dashboard"
