@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 
+// Use environment variable if available, or window.location.origin
+const siteURL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "https://vstracker.upswell.app");
+
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -14,22 +21,45 @@ export default function ResetPassword() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("Reset password page loaded");
+    // Check if we're in a password reset flow
+    const getSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
 
-    // Check for hash fragment or token
-    const hash = window.location.hash;
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+      if (error) {
+        console.error("Session error:", error);
+        setError(
+          "Authentication session error. Please try requesting another password reset."
+        );
+        return;
+      }
 
-    console.log("URL info:", {
-      hasHash: !!hash,
-      hasToken: !!token,
-      fullUrl: window.location.href,
-    });
+      if (data.session) {
+        console.log("Active session detected");
+        setResetReady(true);
+      } else {
+        console.log("No active session found");
+        setError(
+          "No active authentication session. Please try requesting another password reset."
+        );
+      }
+    };
 
-    // Set ready state for simple testing
-    setResetReady(true);
+    getSession();
   }, []);
+
+  const handleCallback = async (type: string, token: string | null) => {
+    if (type === "recovery" && token) {
+      console.log("Processing password reset token");
+      // Explicitly set this session as a recovery session
+      await supabase.auth.refreshSession({
+        refresh_token: token as string,
+      });
+
+      // Now redirect to reset password page
+      router.push("/reset-password");
+      return;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +73,14 @@ export default function ResetPassword() {
 
     try {
       console.log("Attempting password update");
+
+      // Check if user is authenticated with a recovery session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error(
+          "No active session found. Please request a new password reset."
+        );
+      }
 
       const { error, data } = await supabase.auth.updateUser({
         password: password,

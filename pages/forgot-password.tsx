@@ -22,7 +22,6 @@ export default function ForgotPassword() {
     setMessage(null);
 
     try {
-      // Use environment variable if available, otherwise use current origin
       const siteURL = "https://vstracker.upswell.app"; // Hardcode the production URL
       console.log(`Using site URL for redirects: ${siteURL}`);
 
