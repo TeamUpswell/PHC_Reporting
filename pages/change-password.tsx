@@ -37,7 +37,7 @@ export default function ChangePassword() {
 
     // Validate password length
     if (newPassword.length < 6) {
-      setError("New password must be at least 6 characters");
+      setError("Password must be at least 6 characters");
       return;
     }
 
