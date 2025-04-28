@@ -1,25 +1,3 @@
-{
-  /* User dropdown menu */
-}
-{
-  userMenuOpen && (
-    <div className="absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg py-1">
-      <Link
-        href="/change-password"
-        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        Change Password
-      </Link>
-      <button
-        onClick={signOut}
-        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        Sign out
-      </button>
-    </div>
-  );
-}
-
 export const publicRoutes = [
   "/login",
   "/forgot-password",
