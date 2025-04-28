@@ -98,32 +98,16 @@ const Navbar = () => {
 
               {/* User dropdown menu */}
               {userMenuOpen && (
-                <div
-                  className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
-                  role="menu"
-                  aria-orientation="vertical"
-                  aria-labelledby="user-menu-button"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Email displayed here in dropdown */}
-                  <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
-                    {user?.email}
-                  </div>
+                <div className="absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg py-1">
                   <Link
                     href="/change-password"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    role="menuitem"
-                    onClick={() => setUserMenuOpen(false)}
                   >
                     Change Password
                   </Link>
                   <button
-                    onClick={async () => {
-                      await signOut();
-                      router.push("/login");
-                    }}
+                    onClick={signOut}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    role="menuitem"
                   >
                     Sign out
                   </button>
