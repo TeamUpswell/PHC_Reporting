@@ -69,7 +69,7 @@ export default function ChangePassword() {
   }
 
   return (
-    <Layout>
+    <Layout showNavbar={false}>
       <div className="container mx-auto max-w-md py-12">
         <Head>
           <title>Change Password - PHC Data Collection</title>
