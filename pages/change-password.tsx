@@ -3,10 +3,8 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import Layout from "../components/Layout";
-import Link from "next/link";
 
 export default function ChangePassword() {
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,7 +49,7 @@ export default function ChangePassword() {
     setLoading(true);
 
     try {
-      // Update user's password (no need to verify current password with Supabase)
+      // Update user's password (no current password verification)
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -63,7 +61,6 @@ export default function ChangePassword() {
       setMessage("Password changed successfully!");
 
       // Clear form
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
@@ -101,19 +98,6 @@ export default function ChangePassword() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">
-                Current Password
-              </label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-3 py-2 border rounded"
-                required
-              />
-            </div>
-
             <div className="mb-4">
               <label className="block text-gray-700 mb-2">New Password</label>
               <input
