@@ -1,123 +1,161 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../context/AuthContext";
+import Layout from "../components/Layout";
+import Link from "next/link";
 
 export default function ChangePassword() {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    text: string;
-    type: "success" | "error";
-  } | null>(null);
-  const { user } = useAuth();
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (data.session) {
+        setIsAuthenticated(true);
+      } else {
+        // Redirect to login if not authenticated
+        router.push("/login");
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
+    // Clear previous messages
+    setError(null);
+    setMessage(null);
+
+    // Validate password length
     if (newPassword.length < 6) {
-      setMessage({
-        text: "Password must be at least 6 characters",
-        type: "error",
-      });
+      setError("New password must be at least 6 characters");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setMessage({
-        text: "Passwords do not match",
-        type: "error",
-      });
+      setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
-    setMessage(null);
 
     try {
-      // Send a password reset email for security
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        user?.email || "",
-        {
-          redirectTo: `https://vstracker.upswell.app/auth/callback`,
-        }
-      );
-
-      if (resetError) throw resetError;
-
-      setMessage({
-        text: "A password reset link has been sent to your email. Please check your inbox.",
-        type: "success",
+      // Update user's password (no need to verify current password with Supabase)
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
       });
-    } catch (error: any) {
-      console.error("Password change error:", error);
-      setMessage({
-        text: error.message || "Failed to send password reset email",
-        type: "error",
-      });
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage("Password changed successfully!");
+
+      // Clear form
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      setError(err.message || "Failed to change password");
+      console.error("Password change error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isAuthenticated) {
+    return <div>Checking authentication...</div>;
+  }
+
   return (
-    <>
-      <Head>
-        <title>Change Password - PHC Data Collection</title>
-      </Head>
-      <div className="container mx-auto px-4 py-8 max-w-md">
-        <h1 className="text-2xl font-bold mb-6">Change Password</h1>
+    <Layout>
+      <div className="container mx-auto max-w-md py-12">
+        <Head>
+          <title>Change Password - PHC Data Collection</title>
+        </Head>
 
-        {message && (
-          <div
-            className={`${
-              message.type === "error"
-                ? "bg-red-100 border-red-400 text-red-700"
-                : "bg-green-100 border-green-400 text-green-700"
-            } px-4 py-3 rounded relative mb-4`}
-            role="alert"
-          >
-            <span className="block sm:inline">{message.text}</span>
-          </div>
-        )}
+        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <h1 className="text-2xl font-bold mb-6">Change Password</h1>
 
-        <form
-          className="bg-white rounded-lg shadow-md p-6"
-          onSubmit={handleSubmit}
-        >
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-4">
-              For security reasons, we'll send a password reset link to your
-              email address. You don't need to know your current password to set
-              a new one.
-            </p>
-          </div>
+          {message && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+              {message}
+            </div>
+          )}
 
-          <div className="mb-6">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-3 py-2 border rounded"
+                required
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={`w-full px-3 py-2 border rounded ${
+                  newPassword && newPassword.length < 6 ? "border-red-500" : ""
+                }`}
+                required
+                minLength={6}
+              />
+              {newPassword && newPassword.length < 6 && (
+                <p className="text-red-500 text-sm mt-1">
+                  Password must be at least 6 characters
+                </p>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-gray-700 mb-2">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 border rounded"
+                required
+              />
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 w-full"
+              className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send Password Reset Link"}
+              {loading ? "Changing..." : "Change Password"}
             </button>
-          </div>
-
-          <div className="text-center text-sm">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="text-blue-600 hover:underline"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </>
+    </Layout>
   );
 }

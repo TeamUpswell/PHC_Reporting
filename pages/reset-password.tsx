@@ -47,22 +47,18 @@ export default function ResetPassword() {
     getSession();
   }, []);
 
-  const handleCallback = async (type: string, token: string | null) => {
-    if (type === "recovery" && token) {
-      console.log("Processing password reset token");
-      // Explicitly set this session as a recovery session
-      await supabase.auth.refreshSession({
-        refresh_token: token as string,
-      });
-
-      // Now redirect to reset password page
-      router.push("/reset-password");
-      return;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Clear previous messages
+    setError(null);
+    setMessage(null);
+
+    // Validate password length
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -132,9 +128,17 @@ export default function ResetPassword() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded"
+              className={`w-full px-3 py-2 border rounded ${
+                password && password.length < 6 ? "border-red-500" : ""
+              }`}
               required
+              minLength={6}
             />
+            {password && password.length < 6 && (
+              <p className="text-red-500 text-sm mt-1">
+                Password must be at least 6 characters
+              </p>
+            )}
           </div>
 
           <div className="mb-6">
