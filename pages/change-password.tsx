@@ -30,12 +30,9 @@ export default function ChangePassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Clear previous messages
     setError(null);
     setMessage(null);
 
-    // Validate password length
     if (newPassword.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -49,7 +46,6 @@ export default function ChangePassword() {
     setLoading(true);
 
     try {
-      // Update user's password (no current password verification)
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -59,13 +55,10 @@ export default function ChangePassword() {
       }
 
       setMessage("Password changed successfully!");
-
-      // Clear form
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
       setError(err.message || "Failed to change password");
-      console.error("Password change error:", err);
     } finally {
       setLoading(false);
     }
