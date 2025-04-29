@@ -24,9 +24,6 @@ interface CenterReportData {
   dhis_check: boolean;
 }
 
-// Tab options
-type TabOption = "stock" | "doses" | "additional" | "all";
-
 export default function BulkEntry() {
   const [states, setStates] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
@@ -47,8 +44,8 @@ export default function BulkEntry() {
   const [notesText, setNotesText] = useState("");
   const [notesType, setNotesType] = useState<"misinformation" | "shortage">("misinformation");
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<TabOption>("stock");
+  // Unsaved changes state
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     fetchStates();
@@ -122,6 +119,7 @@ export default function BulkEntry() {
 
   // Generic handlers for different field types
   const handleNumberChange = (centerId: string, field: keyof CenterReportData, value: number) => {
+    setHasUnsavedChanges(true);
     setCenterData((prev) => {
       const centerDataCopy = { ...prev };
       centerDataCopy[centerId] = {
@@ -242,410 +240,185 @@ export default function BulkEntry() {
     }
   };
 
-  // Render different table content based on active tab
-  const renderTableContent = () => {
+  // Render the all fields table
+  const renderAllFieldsTable = () => {
     if (!centers || centers.length === 0) return null;
 
-    switch (activeTab) {
-      case "stock":
-        return (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                  Center Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  In Stock
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock Beginning
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock End
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Shortage
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Shortage Notes
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {centers.map((center) => (
-                <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{center.name}</div>
-                    {center.is_treatment_area && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Treatment Area
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.in_stock ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "in_stock", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.stock_beginning || 0}
-                      onChange={(e) => handleNumberChange(center.id, "stock_beginning", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.stock_end || 0}
-                      onChange={(e) => handleNumberChange(center.id, "stock_end", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.shortage ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "shortage", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => openNotesModal({ id: center.id, name: center.name }, "shortage")}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
-                      disabled={!centerData[center.id]?.shortage}
-                    >
-                      {centerData[center.id]?.shortage_response ? "Edit Notes" : "Add Notes"}
-                    </button>
-                    {centerData[center.id]?.shortage_response && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                        Has notes
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
-
-      case "doses":
-        return (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                  Center Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fixed Doses
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Outreach
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Outreach Doses
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Doses
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {centers.map((center) => (
-                <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{center.name}</div>
-                    {center.is_treatment_area && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Treatment Area
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.fixed_doses || 0}
-                      onChange={(e) => handleNumberChange(center.id, "fixed_doses", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.outreach ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "outreach", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.outreach_doses || 0}
-                      onChange={(e) => handleNumberChange(center.id, "outreach_doses", parseInt(e.target.value) || 0)}
-                      className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
-                        !centerData[center.id]?.outreach ? "bg-gray-100" : ""
-                      }`}
-                      disabled={!centerData[center.id]?.outreach}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      value={centerData[center.id]?.total_doses || 0}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
-                      disabled
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
-
-      case "additional":
-        return (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                  Center Name
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Misinformation/Challenges
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  DHIS2 Check
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {centers.map((center) => (
-                <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{center.name}</div>
-                    {center.is_treatment_area && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Treatment Area
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => openNotesModal({ id: center.id, name: center.name }, "misinformation")}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
-                    >
-                      {centerData[center.id]?.misinformation ? "Edit Notes" : "Add Notes"}
-                    </button>
-                    {centerData[center.id]?.misinformation && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                        Has notes
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.dhis_check ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "dhis_check", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
-
-      case "all":
-        return (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10"
+    return (
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10"
+            >
+              Center Name
+            </th>
+            {/* Stock columns */}
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              In Stock
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Stock Begin
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Stock End
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Shortage
+            </th>
+            {/* Doses columns */}
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Fixed Doses
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Outreach
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Outreach Doses
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Total Doses
+            </th>
+            {/* Additional columns */}
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              DHIS2
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Notes
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {centers.map((center) => (
+            <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
+              <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
+                <div className="text-sm font-medium text-gray-900">{center.name}</div>
+                {center.is_treatment_area && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Treatment Area
+                  </span>
+                )}
+              </td>
+              {/* Stock fields */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <select
+                  value={centerData[center.id]?.in_stock ? "true" : "false"}
+                  onChange={(e) => handleBooleanChange(center.id, "in_stock", e.target.value === "true")}
+                  className="border border-gray-300 rounded-md p-1 text-sm"
                 >
-                  Center Name
-                </th>
-                {/* Stock columns */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  In Stock
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock Begin
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock End
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Shortage
-                </th>
-                {/* Doses columns */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fixed Doses
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Outreach
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Outreach Doses
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Doses
-                </th>
-                {/* Additional columns */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  DHIS2
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Notes
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {centers.map((center) => (
-                <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
-                  <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
-                    <div className="text-sm font-medium text-gray-900">{center.name}</div>
-                    {center.is_treatment_area && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Treatment Area
-                      </span>
-                    )}
-                  </td>
-                  {/* Stock fields */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.in_stock ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "in_stock", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.stock_beginning || 0}
-                      onChange={(e) => handleNumberChange(center.id, "stock_beginning", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.stock_end || 0}
-                      onChange={(e) => handleNumberChange(center.id, "stock_end", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <select
-                        value={centerData[center.id]?.shortage ? "true" : "false"}
-                        onChange={(e) => handleBooleanChange(center.id, "shortage", e.target.value === "true")}
-                        className="border border-gray-300 rounded-md p-1 text-sm"
-                      >
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                      {centerData[center.id]?.shortage && centerData[center.id]?.shortage_response && (
-                        <span className="inline-block h-2 w-2 rounded-full bg-blue-500" title="Has notes"></span>
-                      )}
-                    </div>
-                  </td>
-                  {/* Doses fields */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.fixed_doses || 0}
-                      onChange={(e) => handleNumberChange(center.id, "fixed_doses", parseInt(e.target.value) || 0)}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.outreach ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "outreach", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      min="0"
-                      value={centerData[center.id]?.outreach_doses || 0}
-                      onChange={(e) => handleNumberChange(center.id, "outreach_doses", parseInt(e.target.value) || 0)}
-                      className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
-                        !centerData[center.id]?.outreach ? "bg-gray-100" : ""
-                      }`}
-                      disabled={!centerData[center.id]?.outreach}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="number"
-                      value={centerData[center.id]?.total_doses || 0}
-                      className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
-                      disabled
-                    />
-                  </td>
-                  {/* Additional fields */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={centerData[center.id]?.dhis_check ? "true" : "false"}
-                      onChange={(e) => handleBooleanChange(center.id, "dhis_check", e.target.value === "true")}
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => openNotesModal({ id: center.id, name: center.name }, "misinformation")}
-                        className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
-                      >
-                        Notes
-                      </button>
-                      {centerData[center.id]?.misinformation && (
-                        <span className="inline-block h-2 w-2 rounded-full bg-blue-500" title="Has notes"></span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
-    }
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="number"
+                  min="0"
+                  value={centerData[center.id]?.stock_beginning || 0}
+                  onChange={(e) => handleNumberChange(center.id, "stock_beginning", parseInt(e.target.value) || 0)}
+                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="number"
+                  min="0"
+                  value={centerData[center.id]?.stock_end || 0}
+                  onChange={(e) => handleNumberChange(center.id, "stock_end", parseInt(e.target.value) || 0)}
+                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={centerData[center.id]?.shortage ? "true" : "false"}
+                    onChange={(e) => handleBooleanChange(center.id, "shortage", e.target.value === "true")}
+                    className="border border-gray-300 rounded-md p-1 text-sm"
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                  <button
+                    onClick={() => openNotesModal({ id: center.id, name: center.name }, "shortage")}
+                    className="ml-2 p-1 text-blue-600 hover:text-blue-800"
+                    disabled={!centerData[center.id]?.shortage}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+              {/* Doses fields */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="number"
+                  min="0"
+                  value={centerData[center.id]?.fixed_doses || 0}
+                  onChange={(e) => handleNumberChange(center.id, "fixed_doses", parseInt(e.target.value) || 0)}
+                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <select
+                  value={centerData[center.id]?.outreach ? "true" : "false"}
+                  onChange={(e) => handleBooleanChange(center.id, "outreach", e.target.value === "true")}
+                  className="border border-gray-300 rounded-md p-1 text-sm"
+                >
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="number"
+                  min="0"
+                  value={centerData[center.id]?.outreach_doses || 0}
+                  onChange={(e) => handleNumberChange(center.id, "outreach_doses", parseInt(e.target.value) || 0)}
+                  className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
+                    !centerData[center.id]?.outreach ? "bg-gray-100" : ""
+                  }`}
+                  disabled={!centerData[center.id]?.outreach}
+                />
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="number"
+                  value={centerData[center.id]?.total_doses || 0}
+                  className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
+                  disabled
+                />
+              </td>
+              {/* Additional fields */}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <select
+                  value={centerData[center.id]?.dhis_check ? "true" : "false"}
+                  onChange={(e) => handleBooleanChange(center.id, "dhis_check", e.target.value === "true")}
+                  className="border border-gray-300 rounded-md p-1 text-sm"
+                >
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => openNotesModal({ id: center.id, name: center.name }, "misinformation")}
+                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
+                  >
+                    Notes
+                  </button>
+                  {centerData[center.id]?.misinformation && (
+                    <span className="inline-block h-2 w-2 rounded-full bg-blue-500" title="Has notes"></span>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   };
 
   return (
@@ -655,7 +428,7 @@ export default function BulkEntry() {
       </Head>
 
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Bulk Data Entry</h1>
+        <h1 className="text-2xl font-bold mb-6">Bulk HPV Vaccination Data Entry</h1>
 
         {message && (
           <div
@@ -711,9 +484,13 @@ export default function BulkEntry() {
             <button
               onClick={saveAllData}
               disabled={saving || centers.length === 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
+              className={`font-medium py-2 px-4 rounded disabled:opacity-50 ${
+                hasUnsavedChanges 
+                  ? "bg-yellow-500 hover:bg-yellow-600 text-white" 
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
             >
-              {saving ? "Saving..." : "Save All Data"}
+              {saving ? "Saving..." : (hasUnsavedChanges ? "Save Changes*" : "Save All Data")}
             </button>
           )}
         </div>
@@ -722,54 +499,16 @@ export default function BulkEntry() {
           <div className="text-center py-10">Loading centers...</div>
         ) : centers.length > 0 ? (
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            {/* Tabs for selecting data entry sections */}
-            <div className="border-b border-gray-200">
-              <nav className="flex">
-                <button
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === "stock"
-                      ? "border-b-2 border-blue-600 text-blue-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setActiveTab("stock")}
-                >
-                  Vaccine Stock
-                </button>
-                <button
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === "doses"
-                      ? "border-b-2 border-blue-600 text-blue-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setActiveTab("doses")}
-                >
-                  Vaccinations
-                </button>
-                <button
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === "additional"
-                      ? "border-b-2 border-blue-600 text-blue-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setActiveTab("additional")}
-                >
-                  Additional Info
-                </button>
-                <button
-                  className={`px-6 py-3 text-sm font-medium ${
-                    activeTab === "all"
-                      ? "border-b-2 border-blue-600 text-blue-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setActiveTab("all")}
-                >
-                  View All Fields
-                </button>
-              </nav>
+            {/* Section header and instructions */}
+            <div className="border-b border-gray-200 bg-gray-50 p-4">
+              <h2 className="text-lg font-medium text-gray-800">Monthly HPV Vaccination Data</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Enter data for all centers in {selectedState} for {reportMonth}
+              </p>
             </div>
-
+            
             {/* Table area with horizontal scrolling */}
-            <div className="overflow-x-auto">{renderTableContent()}</div>
+            <div className="overflow-x-auto">{renderAllFieldsTable()}</div>
           </div>
         ) : selectedState ? (
           <div className="text-center py-10 bg-white shadow-md rounded-lg">No centers found in {selectedState}.</div>
