@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage<{
+  const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
