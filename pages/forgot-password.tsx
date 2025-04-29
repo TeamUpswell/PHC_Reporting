@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
+  const [message, setMessage<{
     text: string;
     type: "success" | "error";
   } | null>(null);
@@ -22,7 +22,8 @@ export default function ForgotPassword() {
     setMessage(null);
 
     try {
-      const siteURL = "https://vstracker.upswell.app"; // Hardcode the production URL
+      // Use environment variable or fallback to production URL
+      const siteURL = process.env.NEXT_PUBLIC_SITE_URL || "https://vstracker.upswell.app";
       console.log(`Using site URL for redirects: ${siteURL}`);
 
       // Use explicit redirect URL
