@@ -20,16 +20,18 @@ export default function Layout({ children, showNavbar = true }: LayoutProps) {
       {/* Only show Navbar if showNavbar prop is true AND it's not a public page AND user is authenticated */}
       {showNavbar && !isPublicPage && user && <Navbar />}
 
-      {/* Logo container - appears on all pages */}
-      <div className="flex justify-center py-4">
-        <Image
-          src="/images/vital_logo.png"
-          alt="VITAL Logo"
-          width={150}
-          height={50}
-          priority
-        />
-      </div>
+      {/* Logo container - don't show on change-password page */}
+      {router.pathname !== "/change-password" && (
+        <div className="flex justify-center py-4">
+          <Image
+            src="/images/vital_logo.png"
+            alt="VITAL Logo"
+            width={150}
+            height={50}
+            priority
+          />
+        </div>
+      )}
 
       <main className="flex-grow">{children}</main>
     </div>
