@@ -70,6 +70,12 @@ const Navbar = () => {
               >
                 Centers
               </Link>
+              <Link
+                href="/bulk-entry"
+                className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Bulk Data Entry
+              </Link>
             </div>
           </div>
 
@@ -195,6 +201,13 @@ const Navbar = () => {
             onClick={() => setMobileMenuOpen(false)}
           >
             Centers
+          </Link>
+          <Link
+            href="/bulk-entry"
+            className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-blue-700 hover:text-white"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Bulk Data Entry
           </Link>
         </div>
 
