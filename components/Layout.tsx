@@ -22,11 +22,11 @@ export default function Layout({ children, showNavbar = true }: LayoutProps) {
 
       {/* Logo container - appears on all pages */}
       <div className="flex justify-center py-4">
-        <Image 
-          src="/images/vital_logo.png" 
-          alt="VITAL Logo" 
-          width={150} 
-          height={50} 
+        <Image
+          src="/images/vital_logo.png"
+          alt="VITAL Logo"
+          width={150}
+          height={50}
           priority
         />
       </div>
