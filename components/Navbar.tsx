@@ -31,7 +31,7 @@ const Navbar = () => {
           {/* Logo & Brand */}
           <div className="flex-shrink-0">
             <Link href="/dashboard" className="flex items-center">
-              <span className="font-bold text-xl">PHC Tracker</span>
+              <span className="font-bold text-xl">VITAL Tracker</span>
             </Link>
           </div>
 
