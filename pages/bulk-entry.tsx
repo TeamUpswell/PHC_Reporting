@@ -30,19 +30,29 @@ export default function BulkEntry() {
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
   const [reportMonth, setReportMonth] = useState<string>(
     new Date().toISOString().substring(0, 7) // Default to current month (YYYY-MM)
   );
 
   // Center data state
-  const [centerData, setCenterData] = useState<Record<string, CenterReportData>>({});
+  const [centerData, setCenterData] = useState<
+    Record<string, CenterReportData>
+  >({});
 
   // Notes modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [activeCenter, setActiveCenter] = useState<{ id: string; name: string } | null>(null);
+  const [activeCenter, setActiveCenter] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [notesText, setNotesText] = useState("");
-  const [notesType, setNotesType] = useState<"misinformation" | "shortage">("misinformation");
+  const [notesType, setNotesType] = useState<"misinformation" | "shortage">(
+    "misinformation"
+  );
 
   // Unsaved changes state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -69,7 +79,9 @@ export default function BulkEntry() {
       if (error) throw error;
 
       // Extract unique states
-      const uniqueStates = Array.from(new Set(centersData.map((center) => center.state))).sort();
+      const uniqueStates = Array.from(
+        new Set(centersData.map((center) => center.state))
+      ).sort();
 
       setStates(uniqueStates as string[]);
     } catch (error) {
@@ -118,7 +130,11 @@ export default function BulkEntry() {
   };
 
   // Generic handlers for different field types
-  const handleNumberChange = (centerId: string, field: keyof CenterReportData, value: number) => {
+  const handleNumberChange = (
+    centerId: string,
+    field: keyof CenterReportData,
+    value: number
+  ) => {
     setHasUnsavedChanges(true);
     setCenterData((prev) => {
       const centerDataCopy = { ...prev };
@@ -129,16 +145,27 @@ export default function BulkEntry() {
 
       // If we're changing fixed or outreach doses, update total_doses
       if (field === "fixed_doses" || field === "outreach_doses") {
-        const fixedDoses = field === "fixed_doses" ? value : centerDataCopy[centerId].fixed_doses;
-        const outreachDoses = field === "outreach_doses" ? value : centerDataCopy[centerId].outreach_doses;
-        centerDataCopy[centerId].total_doses = fixedDoses + (centerDataCopy[centerId].outreach ? outreachDoses : 0);
+        const fixedDoses =
+          field === "fixed_doses"
+            ? value
+            : centerDataCopy[centerId].fixed_doses;
+        const outreachDoses =
+          field === "outreach_doses"
+            ? value
+            : centerDataCopy[centerId].outreach_doses;
+        centerDataCopy[centerId].total_doses =
+          fixedDoses + (centerDataCopy[centerId].outreach ? outreachDoses : 0);
       }
 
       return centerDataCopy;
     });
   };
 
-  const handleBooleanChange = (centerId: string, field: keyof CenterReportData, value: boolean) => {
+  const handleBooleanChange = (
+    centerId: string,
+    field: keyof CenterReportData,
+    value: boolean
+  ) => {
     setCenterData((prev) => {
       const centerDataCopy = { ...prev };
       centerDataCopy[centerId] = {
@@ -148,22 +175,32 @@ export default function BulkEntry() {
 
       // If we're toggling outreach, update total_doses
       if (field === "outreach") {
-        const outreachDoses = value ? centerDataCopy[centerId].outreach_doses : 0;
-        centerDataCopy[centerId].total_doses = centerDataCopy[centerId].fixed_doses + outreachDoses;
+        const outreachDoses = value
+          ? centerDataCopy[centerId].outreach_doses
+          : 0;
+        centerDataCopy[centerId].total_doses =
+          centerDataCopy[centerId].fixed_doses + outreachDoses;
       }
 
       return centerDataCopy;
     });
   };
 
-  const handleTextChange = (centerId: string, field: keyof CenterReportData, value: string) => {
+  const handleTextChange = (
+    centerId: string,
+    field: keyof CenterReportData,
+    value: string
+  ) => {
     setCenterData((prev) => ({
       ...prev,
       [centerId]: { ...prev[centerId], [field]: value },
     }));
   };
 
-  const openNotesModal = (center: { id: string; name: string }, type: "misinformation" | "shortage") => {
+  const openNotesModal = (
+    center: { id: string; name: string },
+    type: "misinformation" | "shortage"
+  ) => {
     setActiveCenter(center);
     setNotesType(type);
 
@@ -196,23 +233,25 @@ export default function BulkEntry() {
       const reportDate = new Date(`${reportMonth}-01`).toISOString();
 
       // Prepare batch insert data
-      const reportsToInsert = Object.entries(centerData).map(([centerId, data]) => ({
-        center_id: centerId,
-        report_month: reportDate,
-        in_stock: data.in_stock,
-        stock_beginning: data.stock_beginning,
-        stock_end: data.stock_end,
-        shortage: data.shortage,
-        shortage_response: data.shortage_response || null,
-        outreach: data.outreach,
-        fixed_doses: data.fixed_doses,
-        outreach_doses: data.outreach_doses,
-        total_doses: data.total_doses,
-        misinformation: data.misinformation || null,
-        dhis_check: data.dhis_check,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
+      const reportsToInsert = Object.entries(centerData).map(
+        ([centerId, data]) => ({
+          center_id: centerId,
+          report_month: reportDate,
+          in_stock: data.in_stock,
+          stock_beginning: data.stock_beginning,
+          stock_end: data.stock_end,
+          shortage: data.shortage,
+          shortage_response: data.shortage_response || null,
+          outreach: data.outreach,
+          fixed_doses: data.fixed_doses,
+          outreach_doses: data.outreach_doses,
+          total_doses: data.total_doses,
+          misinformation: data.misinformation || null,
+          dhis_check: data.dhis_check,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      );
 
       // Insert data in batches of 20 to avoid request size limitations
       for (let i = 0; i < reportsToInsert.length; i += 20) {
@@ -255,45 +294,80 @@ export default function BulkEntry() {
               Center Name
             </th>
             {/* Stock columns */}
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               In Stock
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Stock Begin
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Stock End
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Shortage
             </th>
             {/* Doses columns */}
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Fixed Doses
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Outreach
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Outreach Doses
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Total Doses
             </th>
             {/* Additional columns */}
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               DHIS2
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Notes
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {centers.map((center) => (
-            <tr key={center.id} className={center.is_treatment_area ? "bg-green-50" : ""}>
+            <tr
+              key={center.id}
+              className={center.is_treatment_area ? "bg-green-50" : ""}
+            >
               <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
-                <div className="text-sm font-medium text-gray-900">{center.name}</div>
+                <div className="text-sm font-medium text-gray-900">
+                  {center.name}
+                </div>
                 {center.is_treatment_area && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     Treatment Area
@@ -304,7 +378,13 @@ export default function BulkEntry() {
               <td className="px-6 py-4 whitespace-nowrap">
                 <select
                   value={centerData[center.id]?.in_stock ? "true" : "false"}
-                  onChange={(e) => handleBooleanChange(center.id, "in_stock", e.target.value === "true")}
+                  onChange={(e) =>
+                    handleBooleanChange(
+                      center.id,
+                      "in_stock",
+                      e.target.value === "true"
+                    )
+                  }
                   className="border border-gray-300 rounded-md p-1 text-sm"
                 >
                   <option value="true">Yes</option>
@@ -316,7 +396,13 @@ export default function BulkEntry() {
                   type="number"
                   min="0"
                   value={centerData[center.id]?.stock_beginning || 0}
-                  onChange={(e) => handleNumberChange(center.id, "stock_beginning", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleNumberChange(
+                      center.id,
+                      "stock_beginning",
+                      parseInt(e.target.value) || 0
+                    )
+                  }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                 />
               </td>
@@ -325,7 +411,13 @@ export default function BulkEntry() {
                   type="number"
                   min="0"
                   value={centerData[center.id]?.stock_end || 0}
-                  onChange={(e) => handleNumberChange(center.id, "stock_end", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleNumberChange(
+                      center.id,
+                      "stock_end",
+                      parseInt(e.target.value) || 0
+                    )
+                  }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                 />
               </td>
@@ -333,19 +425,41 @@ export default function BulkEntry() {
                 <div className="flex items-center space-x-2">
                   <select
                     value={centerData[center.id]?.shortage ? "true" : "false"}
-                    onChange={(e) => handleBooleanChange(center.id, "shortage", e.target.value === "true")}
+                    onChange={(e) =>
+                      handleBooleanChange(
+                        center.id,
+                        "shortage",
+                        e.target.value === "true"
+                      )
+                    }
                     className="border border-gray-300 rounded-md p-1 text-sm"
                   >
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
                   <button
-                    onClick={() => openNotesModal({ id: center.id, name: center.name }, "shortage")}
+                    onClick={() =>
+                      openNotesModal(
+                        { id: center.id, name: center.name },
+                        "shortage"
+                      )
+                    }
                     className="ml-2 p-1 text-blue-600 hover:text-blue-800"
                     disabled={!centerData[center.id]?.shortage}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -356,14 +470,26 @@ export default function BulkEntry() {
                   type="number"
                   min="0"
                   value={centerData[center.id]?.fixed_doses || 0}
-                  onChange={(e) => handleNumberChange(center.id, "fixed_doses", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleNumberChange(
+                      center.id,
+                      "fixed_doses",
+                      parseInt(e.target.value) || 0
+                    )
+                  }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                 />
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <select
                   value={centerData[center.id]?.outreach ? "true" : "false"}
-                  onChange={(e) => handleBooleanChange(center.id, "outreach", e.target.value === "true")}
+                  onChange={(e) =>
+                    handleBooleanChange(
+                      center.id,
+                      "outreach",
+                      e.target.value === "true"
+                    )
+                  }
                   className="border border-gray-300 rounded-md p-1 text-sm"
                 >
                   <option value="true">Yes</option>
@@ -375,7 +501,13 @@ export default function BulkEntry() {
                   type="number"
                   min="0"
                   value={centerData[center.id]?.outreach_doses || 0}
-                  onChange={(e) => handleNumberChange(center.id, "outreach_doses", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleNumberChange(
+                      center.id,
+                      "outreach_doses",
+                      parseInt(e.target.value) || 0
+                    )
+                  }
                   className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
                     !centerData[center.id]?.outreach ? "bg-gray-100" : ""
                   }`}
@@ -394,7 +526,13 @@ export default function BulkEntry() {
               <td className="px-6 py-4 whitespace-nowrap">
                 <select
                   value={centerData[center.id]?.dhis_check ? "true" : "false"}
-                  onChange={(e) => handleBooleanChange(center.id, "dhis_check", e.target.value === "true")}
+                  onChange={(e) =>
+                    handleBooleanChange(
+                      center.id,
+                      "dhis_check",
+                      e.target.value === "true"
+                    )
+                  }
                   className="border border-gray-300 rounded-md p-1 text-sm"
                 >
                   <option value="true">Yes</option>
@@ -404,13 +542,21 @@ export default function BulkEntry() {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => openNotesModal({ id: center.id, name: center.name }, "misinformation")}
+                    onClick={() =>
+                      openNotesModal(
+                        { id: center.id, name: center.name },
+                        "misinformation"
+                      )
+                    }
                     className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
                   >
                     Notes
                   </button>
                   {centerData[center.id]?.misinformation && (
-                    <span className="inline-block h-2 w-2 rounded-full bg-blue-500" title="Has notes"></span>
+                    <span
+                      className="inline-block h-2 w-2 rounded-full bg-blue-500"
+                      title="Has notes"
+                    ></span>
                   )}
                 </div>
               </td>
@@ -422,13 +568,15 @@ export default function BulkEntry() {
   };
 
   return (
-    <Layout>
+    <Layout showNavbar={true}>
       <Head>
         <title>Bulk Data Entry - HPV Vaccination Reports</title>
       </Head>
 
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Bulk HPV Vaccination Data Entry</h1>
+        <h1 className="text-2xl font-bold mb-6">
+          Bulk HPV Vaccination Data Entry
+        </h1>
 
         {message && (
           <div
@@ -446,7 +594,10 @@ export default function BulkEntry() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* State selection */}
             <div>
-              <label htmlFor="state-select" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="state-select"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Select State
               </label>
               <select
@@ -467,7 +618,10 @@ export default function BulkEntry() {
 
             {/* Month selection */}
             <div>
-              <label htmlFor="month-select" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="month-select"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Report Month
               </label>
               <input
@@ -485,12 +639,16 @@ export default function BulkEntry() {
               onClick={saveAllData}
               disabled={saving || centers.length === 0}
               className={`font-medium py-2 px-4 rounded disabled:opacity-50 ${
-                hasUnsavedChanges 
-                  ? "bg-yellow-500 hover:bg-yellow-600 text-white" 
+                hasUnsavedChanges
+                  ? "bg-yellow-500 hover:bg-yellow-600 text-white"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
-              {saving ? "Saving..." : (hasUnsavedChanges ? "Save Changes*" : "Save All Data")}
+              {saving
+                ? "Saving..."
+                : hasUnsavedChanges
+                ? "Save Changes*"
+                : "Save All Data"}
             </button>
           )}
         </div>
@@ -501,19 +659,25 @@ export default function BulkEntry() {
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
             {/* Section header and instructions */}
             <div className="border-b border-gray-200 bg-gray-50 p-4">
-              <h2 className="text-lg font-medium text-gray-800">Monthly HPV Vaccination Data</h2>
+              <h2 className="text-lg font-medium text-gray-800">
+                Monthly HPV Vaccination Data
+              </h2>
               <p className="text-sm text-gray-600 mt-1">
                 Enter data for all centers in {selectedState} for {reportMonth}
               </p>
             </div>
-            
+
             {/* Table area with horizontal scrolling */}
             <div className="overflow-x-auto">{renderAllFieldsTable()}</div>
           </div>
         ) : selectedState ? (
-          <div className="text-center py-10 bg-white shadow-md rounded-lg">No centers found in {selectedState}.</div>
+          <div className="text-center py-10 bg-white shadow-md rounded-lg">
+            No centers found in {selectedState}.
+          </div>
         ) : (
-          <div className="text-center py-10 bg-white shadow-md rounded-lg">Select a state to see centers.</div>
+          <div className="text-center py-10 bg-white shadow-md rounded-lg">
+            Select a state to see centers.
+          </div>
         )}
 
         {/* Floating save button for when users scroll down */}
@@ -526,9 +690,25 @@ export default function BulkEntry() {
             >
               {saving ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Saving...
                 </>
