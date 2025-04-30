@@ -568,7 +568,11 @@ export default function BulkEntry() {
   };
 
   return (
-    <Layout showNavbar={true}>
+    // Set showNavbar to false to hide the Layout navbar
+    <Layout showNavbar={false}>
+      {/* Add your own single navbar here if needed */}
+      {/* <Navbar /> */}
+
       <div className="container mx-auto px-4 py-8">
         <Head>
           <title>Bulk Data Entry - HPV Vaccination Reports</title>
