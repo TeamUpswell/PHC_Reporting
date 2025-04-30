@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Layout from "../components/Layout";
+import Navbar from "../components/Navbar"; // Assuming Navbar is a new component
 import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types";
 
@@ -568,12 +569,14 @@ export default function BulkEntry() {
   };
 
   return (
-    <Layout showNavbar={true}>
-      <Head>
-        <title>Bulk Data Entry - HPV Vaccination Reports</title>
-      </Head>
+    <Layout showNavbar={false}>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
+        <Head>
+          <title>Bulk Data Entry - HPV Vaccination Reports</title>
+        </Head>
+
         <h1 className="text-2xl font-bold mb-6">
           Bulk HPV Vaccination Data Entry
         </h1>
