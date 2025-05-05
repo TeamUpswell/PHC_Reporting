@@ -72,7 +72,7 @@ export default function CenterDetail() {
     growthPercent: 0,
   });
   const [loadingReports, setLoadingReports] = useState(true);
-  const [deletingReportId, setDeletingReportId] = useState(null);
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   // Fetch center details
   useEffect(() => {
