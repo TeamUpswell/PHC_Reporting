@@ -71,6 +71,8 @@ export default function CenterDetail() {
     previousMonthDoses: 0,
     growthPercent: 0,
   });
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [deletingReportId, setDeletingReportId] = useState(null);
 
   // Fetch center details
   useEffect(() => {
@@ -251,6 +253,80 @@ export default function CenterDetail() {
     fetchCenterStats();
   }, [fetchCenterStats]);
 
+  useEffect(() => {
+    const fetchCenterReports = async () => {
+      if (!id) return;
+
+      setLoadingReports(true);
+      try {
+        const { data, error } = await supabase
+          .from("monthly_reports")
+          .select("*")
+          .eq("center_id", id)
+          .order("report_month", { ascending: false });
+
+        if (error) throw error;
+        setReports(data || []);
+      } catch (err) {
+        console.error("Error fetching center reports:", err);
+      } finally {
+        setLoadingReports(false);
+      }
+    };
+
+    fetchCenterReports();
+  }, [id]);
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), "MMMM yyyy");
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  const handleEditReport = (reportId: string) => {
+    const report = reports.find((r) => r.id === reportId);
+    if (report) {
+      const reportDate = report.report_month.substring(0, 7); // Get YYYY-MM part
+      router.push(
+        `/bulk-entry?state=${center.state}&center=${center.id}&month=${reportDate}`
+      );
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this report? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    setDeletingReportId(reportId);
+
+    try {
+      const { error } = await supabase
+        .from("monthly_reports")
+        .delete()
+        .eq("id", reportId);
+
+      if (error) throw error;
+
+      // Update the reports list
+      setReports(reports.filter((r) => r.id !== reportId));
+
+      // Show success message
+      alert("Report successfully deleted");
+    } catch (err) {
+      console.error("Error deleting report:", err);
+      alert(`Failed to delete report: ${err.message}`);
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
   if (loading && !center) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -422,6 +498,101 @@ export default function CenterDetail() {
           onCancel={() => setShowReportForm(false)}
           initialReport={report || undefined}
         />
+
+        {/* Past Reports Section */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-blue-800 mb-6">
+            Past Monthly Reports
+          </h2>
+
+          {loadingReports ? (
+            <div className="text-center py-4">Loading reports...</div>
+          ) : reports.length > 0 ? (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Report Month
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Doses Administered
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Vaccines In Stock
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Beginning Stock
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Ending Stock
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reports.map((report) => (
+                      <tr key={report.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatDate(report.report_month)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {report.total_doses || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              report.in_stock
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {report.in_stock ? "Yes" : "No"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {report.stock_beginning}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {report.stock_end}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                          <button
+                            onClick={() => handleEditReport(report.id)}
+                            className="mr-3 hover:text-blue-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReport(report.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-lg shadow text-center text-gray-500">
+              No reports available for this center yet.
+              <div className="mt-4">
+                <Link
+                  href="/bulk-entry"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Add Monthly Report
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
       {showDeleteModal && (

@@ -3,6 +3,7 @@ import Head from "next/head";
 import Layout from "../components/Layout";
 import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types";
+import { useRouter } from "next/router";
 
 // Define structure for center data
 interface CenterReportData {
@@ -25,6 +26,7 @@ interface CenterReportData {
 }
 
 export default function BulkEntry() {
+  const router = useRouter();
   const [states, setStates] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
@@ -74,6 +76,24 @@ export default function BulkEntry() {
       fetchCenters(selectedState);
     }
   }, [reportMonth]); // Re-fetch when month changes
+
+  useEffect(() => {
+    // Check for URL parameters
+    const queryParams = router.query;
+    if (queryParams.state) {
+      setSelectedState(queryParams.state as string);
+    }
+
+    if (queryParams.month) {
+      setReportMonth(queryParams.month as string);
+    }
+
+    if (queryParams.center) {
+      // This will pre-select a specific center for editing
+      const centerId = queryParams.center as string;
+      // You may need to implement logic to scroll to or highlight this center in your UI
+    }
+  }, [router.query]);
 
   const fetchStates = async () => {
     try {
