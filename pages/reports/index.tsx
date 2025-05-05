@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
+import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabase";
 import { MonthlyReport, HealthcareCenter } from "../../types";
 
@@ -30,6 +31,8 @@ export default function Reports() {
   const [states, setStates] = useState<string[]>([]);
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const router = useRouter();
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -150,6 +153,25 @@ export default function Reports() {
     } catch (error) {
       return dateString;
     }
+  };
+
+  const fetchSpecificReport = async (selectedDate: Date) => {
+    const { id } = router.query;
+    const reportDate = format(selectedDate, "yyyy-MM-01"); // Format exactly like your DB
+
+    // Update your query to use exact date matching
+    const { data: reportData, error } = await supabase
+      .from("monthly_reports")
+      .select("*")
+      .eq("report_month", reportDate)
+      .eq("center_id", id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching specific report:", error);
+    }
+
+    return reportData;
   };
 
   if (loading || isLoading) {
