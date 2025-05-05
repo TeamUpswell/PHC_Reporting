@@ -76,27 +76,23 @@ export default function CenterDetail() {
 
   // Fetch center details
   useEffect(() => {
-    if (!id) return;
-
     const fetchCenterDetails = async () => {
-      setLoading(true);
+      if (!id) return;
+
       try {
-        // Get center details
-        const { data: centerData, error: centerError } = await supabase
+        const { data: centerData, error } = await supabase
           .from("healthcare_centers")
           .select("*")
           .eq("id", id)
           .single();
 
-        if (centerError) throw centerError;
-        setCenter(centerData);
-
-        // Get report for the selected month
-        await fetchMonthlyReport(id as string, selectedMonth);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        if (error) throw error;
+        if (centerData) {
+          setCenter(centerData);
+        }
+      } catch (err) {
+        console.error("Error fetching center details:", err);
+        // Handle error appropriately
       }
     };
 
@@ -287,12 +283,16 @@ export default function CenterDetail() {
 
   const handleEditReport = (reportId: string) => {
     const report = reports.find((r) => r.id === reportId);
-    if (report) {
-      const reportDate = report.report_month.substring(0, 7); // Get YYYY-MM part
-      router.push(
-        `/bulk-entry?state=${center.state}&center=${center.id}&month=${reportDate}`
-      );
+
+    if (!report || !center) {
+      alert("Cannot edit report - missing data");
+      return;
     }
+
+    const reportDate = report.report_month.substring(0, 7); // Get YYYY-MM part
+    router.push(
+      `/bulk-entry?state=${center.state}&center=${center.id}&month=${reportDate}`
+    );
   };
 
   const handleDeleteReport = async (reportId: string) => {
