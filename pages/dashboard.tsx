@@ -257,8 +257,13 @@ const Dashboard = () => {
         center_name
       `
         )
-        .gte("report_month", selectedMonthStart)
-        .lte("report_month", selectedMonthEnd);
+        .eq("report_month", selectedMonthStart); // Use equals instead of range for exact month match
+
+      // Add debug logging
+      console.log("Query parameters:", {
+        selectedMonth: selectedMonthStart,
+        format: "yyyy-MM-01",
+      });
 
       if (error) {
         console.error("Error fetching reports:", error);
@@ -322,22 +327,12 @@ const Dashboard = () => {
       // Calculate previous month data and growth percentages
       const prevMonth = subMonths(selectedDate, 1);
       const prevMonthStart = format(startOfMonth(prevMonth), "yyyy-MM-01");
-      const prevMonthEnd = format(endOfMonth(prevMonth), "yyyy-MM-dd");
-
       const { data: prevMonthReports } = await supabase
         .from("monthly_reports")
         .select(
-          `
-        id,
-        report_month,
-        fixed_doses,
-        outreach_doses,
-        total_doses,
-        center_id
-      `
+          `id, report_month, fixed_doses, outreach_doses, total_doses, center_id`
         )
-        .gte("report_month", prevMonthStart)
-        .lte("report_month", prevMonthEnd);
+        .eq("report_month", prevMonthStart); // Use equals instead of range
 
       // Process previous month data
       let prevTreatmentVaccinations = 0;
@@ -519,25 +514,18 @@ const Dashboard = () => {
           // Generate data for the past 6 months
           for (let i = 5; i >= 0; i--) {
             const targetDate = subMonths(now, i);
-            const targetYear = format(targetDate, "yyyy");
-            const targetMonth = format(targetDate, "MMM");
-            const fullLabel = format(targetDate, "MMM yyyy");
+            const targetMonthDate = format(targetDate, "yyyy-MM-01"); // Format for DB matching
 
-            // Filter reports for this specific year AND month
+            // Filter reports for this specific month
             const monthDoses = reports
               .filter((report) => {
                 if (!report.report_month) return false;
-                try {
-                  const reportDate = parseISO(report.report_month);
-                  return (
-                    format(reportDate, "yyyy") === targetYear &&
-                    format(reportDate, "MMM") === targetMonth
-                  );
-                } catch (err) {
-                  return false;
-                }
+                return report.report_month === targetMonthDate;
               })
               .reduce((sum, report) => sum + (report.total_doses || 0), 0);
+
+            const targetMonth = format(targetDate, "MMM");
+            const fullLabel = format(targetDate, "MMM yyyy");
 
             monthlyData.push({
               month: targetMonth, // Keep the short month label for display
@@ -634,6 +622,32 @@ const Dashboard = () => {
   const treatmentAreaCount = Array.isArray(centers)
     ? centers.filter((center) => center.is_treatment_area).length
     : 0;
+
+  useEffect(() => {
+    async function checkAuthAndData() {
+      // Check current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      console.log("Current user:", user);
+
+      // Test healthcare_centers access
+      const { data: centers, error: centersError } = await supabase
+        .from("healthcare_centers")
+        .select("count(*)")
+        .limit(1);
+      console.log("Centers access:", { data: centers, error: centersError });
+
+      // Test monthly_reports access
+      const { data: reports, error: reportsError } = await supabase
+        .from("monthly_reports")
+        .select("count(*)")
+        .limit(1);
+      console.log("Reports access:", { data: reports, error: reportsError });
+    }
+
+    checkAuthAndData();
+  }, []);
 
   if (error) {
     return (
