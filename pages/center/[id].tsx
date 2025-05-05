@@ -319,9 +319,16 @@ export default function CenterDetail() {
 
       // Show success message
       alert("Report successfully deleted");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error deleting report:", err);
-      alert(`Failed to delete report: ${err.message}`);
+      // Check error type before accessing message property
+      let errorMessage = "An unknown error occurred";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "object" && err !== null && "message" in err) {
+        errorMessage = String(err.message);
+      }
+      alert(`Failed to delete report: ${errorMessage}`);
     } finally {
       setDeletingReportId(null);
     }
