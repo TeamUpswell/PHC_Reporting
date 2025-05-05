@@ -139,6 +139,8 @@ export default function BulkEntry() {
 
       if (reportsError) throw reportsError;
 
+      console.log("Reports data fetched:", reportsData);
+
       // Merge existing report data with initial data
       if (reportsData && reportsData.length > 0) {
         reportsData.forEach((report) => {
