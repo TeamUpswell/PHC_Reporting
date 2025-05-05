@@ -229,6 +229,15 @@ export default function BulkEntry() {
     setMessage(null);
 
     try {
+      // Get the current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
       // Format date for database
       const reportDate = new Date(`${reportMonth}-01`).toISOString();
 
@@ -250,10 +259,11 @@ export default function BulkEntry() {
           dhis_check: data.dhis_check,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          created_by: user.id, // Include the user ID
         })
       );
 
-      // Insert data in batches of 20 to avoid request size limitations
+      // Insert data in batches
       for (let i = 0; i < reportsToInsert.length; i += 20) {
         const batch = reportsToInsert.slice(i, i + 20);
         const { error } = await supabase.from("monthly_reports").upsert(batch, {
