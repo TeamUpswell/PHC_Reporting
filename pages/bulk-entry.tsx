@@ -69,6 +69,12 @@ export default function BulkEntry() {
     }
   }, [selectedState]);
 
+  useEffect(() => {
+    if (selectedState) {
+      fetchCenters(selectedState);
+    }
+  }, [reportMonth]); // Re-fetch when month changes
+
   const fetchStates = async () => {
     try {
       const { data: centersData, error } = await supabase
@@ -94,19 +100,22 @@ export default function BulkEntry() {
   const fetchCenters = async (state: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch centers first
+      const { data: centersData, error: centersError } = await supabase
         .from("healthcare_centers")
         .select("*")
         .eq("state", state)
         .order("name");
 
-      if (error) throw error;
+      if (centersError) throw centersError;
+      setCenters(centersData || []);
 
-      setCenters(data || []);
+      // Format date for database
+      const reportDate = new Date(`${reportMonth}-01`).toISOString();
 
-      // Initialize center data for all centers
+      // Initialize empty data structure
       const initialData: Record<string, CenterReportData> = {};
-      data?.forEach((center) => {
+      centersData?.forEach((center) => {
         initialData[center.id] = {
           in_stock: false,
           stock_beginning: 0,
@@ -121,9 +130,40 @@ export default function BulkEntry() {
           dhis_check: false,
         };
       });
+
+      // Fetch existing reports for the selected month
+      const { data: reportsData, error: reportsError } = await supabase
+        .from("monthly_reports")
+        .select("*")
+        .eq("report_month", reportDate.substring(0, 10));
+
+      if (reportsError) throw reportsError;
+
+      // Merge existing report data with initial data
+      if (reportsData && reportsData.length > 0) {
+        reportsData.forEach((report) => {
+          if (initialData[report.center_id]) {
+            initialData[report.center_id] = {
+              in_stock: report.in_stock,
+              stock_beginning: report.stock_beginning,
+              stock_end: report.stock_end,
+              shortage: report.shortage,
+              shortage_response: report.shortage_response || "",
+              fixed_doses: report.fixed_doses,
+              outreach: report.outreach,
+              outreach_doses: report.outreach_doses,
+              total_doses: report.total_doses,
+              misinformation: report.misinformation || "",
+              dhis_check: report.dhis_check,
+            };
+          }
+        });
+      }
+
       setCenterData(initialData);
+      setHasUnsavedChanges(false); // Reset since we just loaded data
     } catch (error) {
-      console.error("Error fetching centers:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
