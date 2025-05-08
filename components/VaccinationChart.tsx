@@ -4,7 +4,8 @@ import Chart from "chart.js/auto";
 interface ChartDataPoint {
   month: string;
   doses: number;
-  fullLabel?: string; // Add this line to include the optional fullLabel property
+  fullLabel?: string;
+  isSelected?: boolean; // Add this line
 }
 
 interface VaccinationChartProps {
@@ -47,9 +48,17 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
             {
               label: "Vaccine Doses",
               data: data.map((item) => item.doses),
-              backgroundColor: "rgba(59, 130, 246, 0.6)", // Blue
-              borderColor: "rgb(37, 99, 235)",
-              borderWidth: 1,
+              backgroundColor: data.map((item) => 
+                item.isSelected 
+                  ? "rgba(59, 130, 246, 0.8)" // Highlight selected month
+                  : "rgba(59, 130, 246, 0.6)"
+              ),
+              borderColor: data.map((item) => 
+                item.isSelected
+                  ? "rgb(29, 78, 216)" // Darker border for selected month
+                  : "rgb(37, 99, 235)"
+              ),
+              borderWidth: data.map((item) => item.isSelected ? 2 : 1),
             },
           ],
         },

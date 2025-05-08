@@ -1032,28 +1032,36 @@ const Dashboard = () => {
 
   const generateMonthlyData = () => {
     const monthlyData = [];
-    const now = new Date();
-
-    // Generate data for the past 6 months
-    for (let i = 5; i >= 0; i--) {
-      const targetDate = subMonths(now, i);
+    
+    // Center the selected month in the chart
+    // Show 2 months before and 3 months after the selected month
+    for (let i = -2; i <= 3; i++) {
+      const targetDate = addMonths(selectedDate, i);
       const targetMonth = format(targetDate, "yyyy-MM");
-
+      const targetMonthFormatted = format(targetDate, "yyyy-MM-01");
+      
+      // Check if we're trying to show future months beyond now
+      const now = new Date();
+      const isInFuture = targetDate > now;
+      
       // Filter reports for this month
       const monthReports = reportsData?.filter((report) => {
+        // Don't attempt to show data for future months
+        if (isInFuture) return false;
+        
         // Handle different date formats that might be in your data
         if (!report.report_date && !report.report_month) return false;
-
-        const reportDate = report.report_date
-          ? new Date(report.report_date)
-          : new Date(report.report_month);
-
+        
+        const reportDate = report.report_month
+          ? new Date(report.report_month)
+          : new Date(report.report_date);
+          
         const reportMonth = format(reportDate, "yyyy-MM");
         return reportMonth === targetMonth;
       });
 
       // Calculate total doses for this month
-      const totalDoses = monthReports?.reduce((sum, report) => {
+      const totalDoses = isInFuture ? null : monthReports?.reduce((sum, report) => {
         // Handle different ways doses might be stored
         let dosesValue = 0;
 
@@ -1066,15 +1074,19 @@ const Dashboard = () => {
         return sum + dosesValue;
       }, 0);
 
+      // Add month data, highlighting the selected month
+      const isSelectedMonth = i === 0;
+      
       monthlyData.push({
         month: format(targetDate, "MMM"),
         fullLabel: format(targetDate, "MMMM yyyy"),
-        doses: totalDoses || 0,
+        doses: isInFuture ? 0 : (totalDoses || 0),
+        isSelected: isSelectedMonth
       });
     }
 
     // Debug output
-    console.log("Generated monthly data:", monthlyData);
+    console.log("Generated monthly data centered on selected month:", monthlyData);
 
     return monthlyData;
   };
@@ -1593,7 +1605,10 @@ const Dashboard = () => {
                 <div className="lg:col-span-2">
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">
-                      Vaccination Doses ({format(selectedDate, "MMMM yyyy")})
+                      Vaccination Doses
+                      <span className="ml-2 text-blue-600">
+                        ({format(selectedDate, "MMMM yyyy")})
+                      </span>
                     </h2>
                     <ErrorBoundary
                       fallback={<div>Chart could not be displayed</div>}
