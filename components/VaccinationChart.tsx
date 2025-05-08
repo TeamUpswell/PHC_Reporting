@@ -108,7 +108,7 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
     };
   }, [data]);
 
-  if (!data || data.length === 0) {
+  if (!data || data.length === 0 || data.every(item => item.doses === 0)) {
     return (
       <div
         style={{ height }}

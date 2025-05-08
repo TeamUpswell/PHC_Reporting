@@ -589,32 +589,45 @@ const Dashboard = () => {
             doses: number;
           }> = [];
 
-          // Get the current year and month
-          const currentYear = format(now, "yyyy");
-          const currentMonth = parseInt(format(now, "M"), 10);
-
           // Generate data for the past 6 months
           for (let i = 5; i >= 0; i--) {
             const targetDate = subMonths(now, i);
             const targetMonthDate = format(targetDate, "yyyy-MM-01"); // Format for DB matching
 
-            // Filter reports for this specific month
+            // Filter reports for this specific month - fixing the filter condition
             const monthDoses = reports
               .filter((report) => {
                 if (!report.report_month) return false;
                 return report.report_month === targetMonthDate;
               })
-              .reduce((sum, report) => sum + (report.total_doses || 0), 0);
+              .reduce((sum, report) => {
+                // Ensure we handle both total_doses directly or calculate from components
+                let dosesValue = 0;
+                if (typeof report.total_doses === 'number') {
+                  dosesValue = report.total_doses;
+                } else {
+                  const fixedDoses = report.fixed_doses || 0;
+                  const outreachDoses = report.outreach_doses || 0;
+                  dosesValue = fixedDoses + outreachDoses;
+                }
+                return sum + dosesValue;
+              }, 0);
 
             const targetMonth = format(targetDate, "MMM");
             const fullLabel = format(targetDate, "MMM yyyy");
 
+            // Add debug log to verify data is being added
+            console.log(`Adding month data: ${fullLabel}, doses: ${monthDoses}`);
+            
             monthlyData.push({
-              month: targetMonth, // Keep the short month label for display
-              fullLabel: fullLabel, // Add full month+year for tooltips
+              month: targetMonth,
+              fullLabel: fullLabel,
               doses: monthDoses,
             });
           }
+
+          // Add debug output for final monthly data
+          console.log("Final monthly data for chart:", JSON.stringify(monthlyData));
 
           console.log("Monthly data for chart:", monthlyData);
 
