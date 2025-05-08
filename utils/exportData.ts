@@ -72,8 +72,10 @@ export const exportCentersToCSV = async () => {
  */
 export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date }) => {
   try {
-    // First fetch all reports
-    const { data: reports, error } = await supabase
+    console.log('Starting export of reports with date range:', dateRange);
+    
+    // Build the Supabase query
+    let query = supabase
       .from('monthly_reports')
       .select(`
         id,
@@ -91,40 +93,30 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
         created_at
       `);
     
-    if (error) throw error;
+    // Apply date range filter if provided
+    if (dateRange) {
+      const startStr = format(dateRange.start, 'yyyy-MM-dd');
+      const endStr = format(dateRange.end, 'yyyy-MM-dd');
+      console.log(`Filtering reports from ${startStr} to ${endStr}`);
+      
+      // Use gte/lte for date range
+      query = query.gte('report_month', startStr).lte('report_month', endStr);
+    }
+    
+    const { data: reports, error } = await query;
+    
+    if (error) {
+      console.error('Supabase error fetching reports:', error);
+      throw error;
+    }
+    
     if (!reports || reports.length === 0) {
+      console.warn('No reports found to export');
       throw new Error('No reports found to export');
     }
     
-    // Filter by date range in JavaScript instead of SQL
-    let filteredReports = reports;
-    if (dateRange) {
-      const startTime = dateRange.start.getTime();
-      const endTime = dateRange.end.getTime();
-      
-      filteredReports = reports.filter(report => {
-        if (!report.report_month) return false;
-        
-        try {
-          // Parse the report date
-          const reportDate = new Date(report.report_month);
-          const reportTime = reportDate.getTime();
-          
-          // Check if it's within range
-          return reportTime >= startTime && reportTime <= endTime;
-        } catch (err) {
-          console.error('Error parsing report date:', report.report_month);
-          return false;
-        }
-      });
-    }
-    
-    console.log(`Filtered ${reports.length} reports to ${filteredReports.length} for export`);
-    
-    if (filteredReports.length === 0) {
-      throw new Error('No reports found in the selected date range');
-    }
-    
+    console.log(`Successfully fetched ${reports.length} reports for export`);
+
     // Define CSV headers
     const headers = [
       'ID',
@@ -143,7 +135,7 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
     ];
     
     // Convert data to CSV rows
-    const rows = filteredReports.map(report => [
+    const rows = reports.map(report => [
       report.id,
       report.center_id,
       `"${(report.center_name || '').replace(/"/g, '""')}"`,
@@ -176,16 +168,11 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
     return { 
       success: true, 
       fileName,
-      count: filteredReports.length 
+      count: reports.length 
     };
-  } catch (error: any) {
-    console.error('Error exporting reports:', error);
-    return { 
-      success: false, 
-      error: { 
-        message: error.message || 'Unknown error during export' 
-      } 
-    };
+  } catch (error) {
+    console.error('Error in exportReportsToCSV:', error);
+    return { success: false, error };
   }
 };
 

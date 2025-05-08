@@ -219,7 +219,7 @@ export default function Reports() {
   };
 
   const handleExportReports = async () => {
-    setExporting(prev => ({ ...prev, reports: true }));
+    setExporting((prev) => ({ ...prev, reports: true }));
     try {
       console.log("Starting reports export");
       
@@ -250,7 +250,7 @@ export default function Reports() {
       console.error("Error during export:", error);
       toast.error(`Export failed: ${error.message || 'Unknown error'}`);
     } finally {
-      setExporting(prev => ({ ...prev, reports: false }));
+      setExporting((prev) => ({ ...prev, reports: false }));
     }
   };
 
