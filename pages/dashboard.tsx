@@ -82,6 +82,20 @@ interface DashboardStats {
       outreachPercent: number;
     };
   };
+  performanceBreakdown?: {
+    highPerforming: {
+      count: number;
+      totalDoses: number;
+      percentOfAllDoses: number;
+    };
+    lowPerforming: {
+      count: number;
+      totalDoses: number;
+      percentOfAllDoses: number;
+    };
+    totalCenters: number;
+    totalDoses: number;
+  };
 }
 
 interface SummaryData {
@@ -194,6 +208,20 @@ const Dashboard = () => {
         fixedPercent: 0,
         outreachPercent: 0,
       },
+    },
+    performanceBreakdown: {
+      highPerforming: {
+        count: 0,
+        totalDoses: 0,
+        percentOfAllDoses: 0,
+      },
+      lowPerforming: {
+        count: 0,
+        totalDoses: 0,
+        percentOfAllDoses: 0,
+      },
+      totalCenters: 0,
+      totalDoses: 0,
     },
   });
   const [loading, setLoading] = useState(true);
@@ -821,6 +849,108 @@ const Dashboard = () => {
             },
           }));
 
+          // Calculate high-performing and low-performing centers for the selected month
+          // First, create a map of centers and their total doses for the selected month
+          const centerDosesMap = new Map<string, number>();
+
+          // Aggregate total doses by center
+          reports.forEach((report) => {
+            if (report.report_month === selectedMonthFormatted) {
+              const centerId = report.center_id;
+              const doses = report.total_doses || 0;
+
+              const currentDoses = centerDosesMap.get(centerId) || 0;
+              centerDosesMap.set(centerId, currentDoses + doses);
+            }
+          });
+
+          // Convert to array for sorting
+          const centerDosesArray = Array.from(centerDosesMap.entries()).map(
+            ([centerId, doses]) => ({
+              centerId,
+              doses,
+            })
+          );
+
+          // Sort by doses in descending order
+          centerDosesArray.sort((a, b) => b.doses - a.doses);
+
+          // Calculate the total doses for this month
+          const totalMonthDoses = centerDosesArray.reduce(
+            (sum, item) => sum + item.doses,
+            0
+          );
+
+          // Calculate the 1% threshold
+          const onePercentThreshold = totalMonthDoses * 0.01;
+
+          // Find high-performing centers (cumulative 80% of doses)
+          const highPerformingCenters: string[] = [];
+          let cumulativeDoses = 0;
+          let highPerformingTotalDoses = 0;
+
+          for (const center of centerDosesArray) {
+            if (cumulativeDoses < totalMonthDoses * 0.8) {
+              highPerformingCenters.push(center.centerId);
+              highPerformingTotalDoses += center.doses;
+              cumulativeDoses += center.doses;
+            } else {
+              break;
+            }
+          }
+
+          // Find low-performing centers (< 1% of doses each)
+          const lowPerformingCenters = centerDosesArray
+            .filter((center) => center.doses < onePercentThreshold)
+            .map((center) => center.centerId);
+
+          // Calculate total doses from low-performing centers
+          const lowPerformingTotalDoses = centerDosesArray
+            .filter((center) => center.doses < onePercentThreshold)
+            .reduce((sum, center) => sum + center.doses, 0);
+
+          console.log("Performance breakdown:", {
+            highPerforming: {
+              count: highPerformingCenters.length,
+              totalDoses: highPerformingTotalDoses,
+              percentOfAllDoses:
+                (highPerformingTotalDoses / totalMonthDoses) * 100,
+            },
+            lowPerforming: {
+              count: lowPerformingCenters.length,
+              totalDoses: lowPerformingTotalDoses,
+              percentOfAllDoses:
+                (lowPerformingTotalDoses / totalMonthDoses) * 100,
+            },
+            totalCenters: centerDosesArray.length,
+            totalDoses: totalMonthDoses,
+          });
+
+          // Update stats state with performance breakdown
+          setStats((prevStats) => ({
+            ...prevStats,
+            performanceBreakdown: {
+              highPerforming: {
+                count: highPerformingCenters.length,
+                totalDoses: highPerformingTotalDoses,
+                percentOfAllDoses:
+                  totalMonthDoses > 0
+                    ? (highPerformingTotalDoses / totalMonthDoses) * 100
+                    : 0,
+              },
+              lowPerforming: {
+                count: lowPerformingCenters.length,
+                totalDoses: lowPerformingTotalDoses,
+                percentOfAllDoses:
+                  totalMonthDoses > 0
+                    ? (lowPerformingTotalDoses / totalMonthDoses) * 100
+                    : 0,
+              },
+              totalCenters: centerDosesArray.length,
+              totalDoses: totalMonthDoses,
+            },
+          }));
+
           setStateStats(stateStats);
         }
       } catch (err: any) {
@@ -1178,6 +1308,47 @@ const Dashboard = () => {
                   } doses`}
                   icon="ambulance"
                   color="yellow"
+                />
+              </div>
+            </div>
+
+            {/* Performance Breakdown Cards */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-4">
+                Center Performance Analysis
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* High Performing Centers Card */}
+                <DashboardCard
+                  title="High-Performing Centers"
+                  value={`${
+                    stats.performanceBreakdown?.highPerforming.count || 0
+                  }`}
+                  subValue={`${Math.round(
+                    stats.performanceBreakdown?.highPerforming
+                      .percentOfAllDoses || 0
+                  )}% of doses from ${(
+                    (stats.performanceBreakdown?.highPerforming.count || 0) /
+                    (stats.performanceBreakdown?.totalCenters || 1) *
+                    100
+                  ).toFixed(1)}% of centers`}
+                  icon="star"
+                  color="green"
+                />
+
+                {/* Low Performing Centers Card */}
+                <DashboardCard
+                  title="Low-Performing Centers"
+                  value={`${
+                    stats.performanceBreakdown?.lowPerforming.count || 0
+                  }`}
+                  subValue={`Each center below 1% of total doses (${
+                    stats.performanceBreakdown?.lowPerforming.percentOfAllDoses.toFixed(
+                      1
+                    ) || 0
+                  }% total)`}
+                  icon="warning"
+                  color="red"
                 />
               </div>
             </div>
