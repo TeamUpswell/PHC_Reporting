@@ -66,6 +66,22 @@ interface DashboardStats {
       change?: number;
     };
   };
+  doseDistribution?: {
+    treatment: {
+      fixed: number;
+      outreach: number;
+      total: number;
+      fixedPercent: number;
+      outreachPercent: number;
+    };
+    control: {
+      fixed: number;
+      outreach: number;
+      total: number;
+      fixedPercent: number;
+      outreachPercent: number;
+    };
+  };
 }
 
 interface SummaryData {
@@ -162,6 +178,22 @@ const Dashboard = () => {
     zeroDoses: {
       treatmentCenters: { count: 0, total: 0, percent: 0, change: 0 },
       controlCenters: { count: 0, total: 0, percent: 0, change: 0 },
+    },
+    doseDistribution: {
+      treatment: {
+        fixed: 0,
+        outreach: 0,
+        total: 0,
+        fixedPercent: 0,
+        outreachPercent: 0,
+      },
+      control: {
+        fixed: 0,
+        outreach: 0,
+        total: 0,
+        fixedPercent: 0,
+        outreachPercent: 0,
+      },
     },
   });
   const [loading, setLoading] = useState(true);
@@ -698,14 +730,95 @@ const Dashboard = () => {
             },
           }));
 
+          // Calculate fixed versus outreach doses for the selected month
+          let fixedDosesTreatment = 0;
+          let outreachDosesTreatment = 0;
+          let fixedDosesControl = 0;
+          let outreachDosesControl = 0;
+
+          // Process reports to find fixed vs outreach doses distribution
+          reports.forEach((report) => {
+            // Only consider reports from the selected month
+            if (report.report_month === selectedMonthFormatted) {
+              const center = centers.find((c) => c.id === report.center_id);
+
+              // Get fixed and outreach doses from the report
+              const fixedDoses = report.fixed_doses || 0;
+              const outreachDoses = report.outreach_doses || 0;
+
+              if (center) {
+                if (center.is_treatment_area) {
+                  fixedDosesTreatment += fixedDoses;
+                  outreachDosesTreatment += outreachDoses;
+                } else {
+                  fixedDosesControl += fixedDoses;
+                  outreachDosesControl += outreachDoses;
+                }
+              }
+            }
+          });
+
+          // Calculate totals and percentages
+          const totalDosesTreatment =
+            fixedDosesTreatment + outreachDosesTreatment;
+          const totalDosesControl = fixedDosesControl + outreachDosesControl;
+
+          // Calculate percentages (avoid division by zero)
+          const fixedPercentTreatment =
+            totalDosesTreatment > 0
+              ? (fixedDosesTreatment / totalDosesTreatment) * 100
+              : 0;
+
+          const outreachPercentTreatment =
+            totalDosesTreatment > 0
+              ? (outreachDosesTreatment / totalDosesTreatment) * 100
+              : 0;
+
+          const fixedPercentControl =
+            totalDosesControl > 0
+              ? (fixedDosesControl / totalDosesControl) * 100
+              : 0;
+
+          const outreachPercentControl =
+            totalDosesControl > 0
+              ? (outreachDosesControl / totalDosesControl) * 100
+              : 0;
+
+          console.log("Dose distribution:", {
+            treatment: {
+              fixed: fixedDosesTreatment,
+              outreach: outreachDosesTreatment,
+              total: totalDosesTreatment,
+              fixedPercent: fixedPercentTreatment,
+              outreachPercent: outreachPercentTreatment,
+            },
+            control: {
+              fixed: fixedDosesControl,
+              outreach: outreachDosesControl,
+              total: totalDosesControl,
+              fixedPercent: fixedPercentControl,
+              outreachPercent: outreachPercentControl,
+            },
+          });
+
           setStats((prevStats) => ({
-            totalCenters: centers.length,
-            totalDoses,
-            stockoutCenters,
-            recentReports,
-            areaStats,
-            monthlyData,
-            zeroDoses: prevStats.zeroDoses, // Preserve the previously set zeroDoses
+            ...prevStats,
+            doseDistribution: {
+              treatment: {
+                fixed: fixedDosesTreatment,
+                outreach: outreachDosesTreatment,
+                total: totalDosesTreatment,
+                fixedPercent: fixedPercentTreatment,
+                outreachPercent: outreachPercentTreatment,
+              },
+              control: {
+                fixed: fixedDosesControl,
+                outreach: outreachDosesControl,
+                total: totalDosesControl,
+                fixedPercent: fixedPercentControl,
+                outreachPercent: outreachPercentControl,
+              },
+            },
           }));
 
           setStateStats(stateStats);
@@ -990,6 +1103,85 @@ const Dashboard = () => {
                 }
               />
             </div>
+
+            {/* Fixed vs Outreach Cards */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-4">
+                Dose Distribution by Location
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Treatment Fixed Doses */}
+                <DashboardCard
+                  title="Treatment Fixed Doses"
+                  value={`${
+                    stats.doseDistribution?.treatment.fixedPercent.toFixed(1) ||
+                    0
+                  }%`}
+                  subValue={`${
+                    stats.doseDistribution?.treatment.fixed.toLocaleString() ||
+                    0
+                  } of ${
+                    stats.doseDistribution?.treatment.total.toLocaleString() ||
+                    0
+                  } doses`}
+                  icon="hospital"
+                  color="green"
+                />
+
+                {/* Treatment Outreach Doses */}
+                <DashboardCard
+                  title="Treatment Outreach Doses"
+                  value={`${
+                    stats.doseDistribution?.treatment.outreachPercent.toFixed(
+                      1
+                    ) || 0
+                  }%`}
+                  subValue={`${
+                    stats.doseDistribution?.treatment.outreach.toLocaleString() ||
+                    0
+                  } of ${
+                    stats.doseDistribution?.treatment.total.toLocaleString() ||
+                    0
+                  } doses`}
+                  icon="ambulance"
+                  color="teal"
+                />
+
+                {/* Control Fixed Doses */}
+                <DashboardCard
+                  title="Control Fixed Doses"
+                  value={`${
+                    stats.doseDistribution?.control.fixedPercent.toFixed(1) || 0
+                  }%`}
+                  subValue={`${
+                    stats.doseDistribution?.control.fixed.toLocaleString() || 0
+                  } of ${
+                    stats.doseDistribution?.control.total.toLocaleString() || 0
+                  } doses`}
+                  icon="hospital"
+                  color="red"
+                />
+
+                {/* Control Outreach Doses */}
+                <DashboardCard
+                  title="Control Outreach Doses"
+                  value={`${
+                    stats.doseDistribution?.control.outreachPercent.toFixed(
+                      1
+                    ) || 0
+                  }%`}
+                  subValue={`${
+                    stats.doseDistribution?.control.outreach.toLocaleString() ||
+                    0
+                  } of ${
+                    stats.doseDistribution?.control.total.toLocaleString() || 0
+                  } doses`}
+                  icon="ambulance"
+                  color="yellow"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Treatment Growth Box */}
               <div className="bg-white rounded-lg shadow p-6">
