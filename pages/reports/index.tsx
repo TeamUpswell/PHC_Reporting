@@ -221,13 +221,9 @@ export default function Reports() {
   const handleExportReports = async () => {
     setExporting((prev) => ({ ...prev, reports: true }));
     try {
-      // Optional: Define a date range if you want to filter reports by date
-      const dateRange = {
-        start: new Date(new Date().setMonth(new Date().getMonth() - 6)), // Last 6 months
-        end: new Date(),
-      };
-
-      const result = await exportReportsToCSV(dateRange);
+      // Remove the dateRange parameter if it's causing issues
+      const result = await exportReportsToCSV();
+      
       if (result.success) {
         toast.success(`Successfully exported reports to ${result.fileName}`);
       } else {
@@ -235,7 +231,7 @@ export default function Reports() {
       }
     } catch (error) {
       console.error("Error exporting reports:", error);
-      toast.error("An error occurred while exporting reports");
+      toast.error(`Export failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setExporting((prev) => ({ ...prev, reports: false }));
     }
