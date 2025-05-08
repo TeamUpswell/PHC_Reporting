@@ -622,7 +622,7 @@ const Dashboard = () => {
             monthlyData.push({
               month: targetMonth,
               fullLabel: fullLabel,
-              doses: monthDoses,
+              doses: monthDoses
             });
           }
 
@@ -1029,6 +1029,55 @@ const Dashboard = () => {
 
     checkAuthAndData();
   }, []);
+
+  const generateMonthlyData = () => {
+    const monthlyData = [];
+    const now = new Date();
+
+    // Generate data for the past 6 months
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = subMonths(now, i);
+      const targetMonth = format(targetDate, "yyyy-MM");
+
+      // Filter reports for this month
+      const monthReports = reportsData?.filter((report) => {
+        // Handle different date formats that might be in your data
+        if (!report.report_date && !report.report_month) return false;
+
+        const reportDate = report.report_date
+          ? new Date(report.report_date)
+          : new Date(report.report_month);
+
+        const reportMonth = format(reportDate, "yyyy-MM");
+        return reportMonth === targetMonth;
+      });
+
+      // Calculate total doses for this month
+      const totalDoses = monthReports?.reduce((sum, report) => {
+        // Handle different ways doses might be stored
+        let dosesValue = 0;
+
+        if (typeof report.total_doses === "number") {
+          dosesValue = report.total_doses;
+        } else if (report.fixed_doses || report.outreach_doses) {
+          dosesValue = (report.fixed_doses || 0) + (report.outreach_doses || 0);
+        }
+
+        return sum + dosesValue;
+      }, 0);
+
+      monthlyData.push({
+        month: format(targetDate, "MMM"),
+        fullLabel: format(targetDate, "MMMM yyyy"),
+        doses: totalDoses || 0,
+      });
+    }
+
+    // Debug output
+    console.log("Generated monthly data:", monthlyData);
+
+    return monthlyData;
+  };
 
   if (error) {
     return (
@@ -1550,7 +1599,7 @@ const Dashboard = () => {
                       fallback={<div>Chart could not be displayed</div>}
                     >
                       <VaccinationChart
-                        data={stats.monthlyData}
+                        data={generateMonthlyData()}
                         height="300px"
                       />
                     </ErrorBoundary>
