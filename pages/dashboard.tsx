@@ -523,7 +523,11 @@ const Dashboard = () => {
           });
 
           const now = new Date();
-          const monthlyData = [];
+          const monthlyData: Array<{
+            month: string;
+            fullLabel: string;
+            doses: number;
+          }> = [];
 
           // Get the current year and month
           const currentYear = format(now, "yyyy");
@@ -923,50 +927,56 @@ const Dashboard = () => {
               {/* Treatment Areas Zero Doses Card */}
               <DashboardCard
                 title="Treatment Centers with Zero Doses"
-                value={`${stats.zeroDoses?.treatmentCenters.percent?.toFixed(1) || 0}%`}
-                subValue={`${stats.zeroDoses?.treatmentCenters.count || 0} of ${stats.zeroDoses?.treatmentCenters.total || 0} centers`}
+                value={`${
+                  stats.zeroDoses?.treatmentCenters.percent?.toFixed(1) || 0
+                }%`}
+                subValue={`${stats.zeroDoses?.treatmentCenters.count || 0} of ${
+                  stats.zeroDoses?.treatmentCenters.total || 0
+                } centers`}
                 icon="exclamation-triangle"
-                color="red"${stats.zeroDoses?.treatmentCenters.count || 0} of ${
-                trend={.zeroDoses?.treatmentCenters.total || 0
+                color="red"
+                trend={
                   stats.zeroDoses?.treatmentCenters.change !== undefined &&
                   stats.zeroDoses?.treatmentCenters.change !== 0
-                    ? {red"
+                    ? {
                         direction:
                           (stats.zeroDoses?.treatmentCenters.change ?? 0) < 0
-                            ? "down"reatmentCenters.change !== 0
+                            ? "down"
                             : "up",
                         percentage: `${Math.abs(
-                          stats.zeroDoses?.treatmentCenters.change ?? 00) < 0
+                          stats.zeroDoses?.treatmentCenters.change ?? 0
                         ).toFixed(1)}%`,
-                      }     : "up",
-                    : nullrcentage: `${Math.abs(
-                }         stats.zeroDoses?.treatmentCenters.change ?? 0
-              />        ).toFixed(1)}%`,
                       }
+                    : null
+                }
+              />
               {/* Control Areas Zero Doses Card */}
               <DashboardCard
                 title="Control Centers with Zero Doses"
-                value={`${stats.zeroDoses?.controlCenters.percent?.toFixed(1) || 0}%`}
-                subValue={`${stats.zeroDoses?.controlCenters.count || 0} of ${stats.zeroDoses?.controlCenters.total || 0} centers`}
+                value={`${
+                  stats.zeroDoses?.controlCenters.percent?.toFixed(1) || 0
+                }%`}
+                subValue={`${stats.zeroDoses?.controlCenters.count || 0} of ${
+                  stats.zeroDoses?.controlCenters.total || 0
+                } centers`}
                 icon="exclamation-triangle"
-                color="yellow" Centers with Zero Doses"
-                trend={`${
-                  stats.zeroDoses?.controlCenters.change !== undefined &&0
+                color="yellow"
+                trend={
+                  stats.zeroDoses?.controlCenters.change !== undefined &&
                   stats.zeroDoses?.controlCenters.change !== 0
-                    ? {e={`${stats.zeroDoses?.controlCenters.count || 0} of ${
-                        direction:.controlCenters.total || 0
+                    ? {
+                        direction:
                           (stats.zeroDoses?.controlCenters.change ?? 0) < 0
-                            ? "down"iangle"
+                            ? "down"
                             : "up",
                         percentage: `${Math.abs(
-                          stats.zeroDoses?.controlCenters.change ?? 0d &&
-                        ).toFixed(1)}%`,olCenters.change !== 0
+                          stats.zeroDoses?.controlCenters.change ?? 0
+                        ).toFixed(1)}%`,
                       }
-                    : nullrection:
-                }         (stats.zeroDoses?.controlCenters.change ?? 0) < 0
-              />            ? "down"
-            </div>          : "up",
-                        percentage: `${Math.abs(
+                    : null
+                }
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Treatment Growth Box */}
               <div className="bg-white rounded-lg shadow p-6">
@@ -975,147 +985,145 @@ const Dashboard = () => {
                 </h2>
                 <div className="flex items-center mb-4">
                   <div className="text-2xl font-bold">
-                    {summaryData.treatmentGrowthPercent.toFixed(1)}%-8">
-                  </div>ent Growth Box */}
-                  <div className="ml-3">ounded-lg shadow p-6">
+                    {summaryData.treatmentGrowthPercent.toFixed(1)}%
+                  </div>
+                  <div className="ml-3">
                     {summaryData.treatmentGrowthPercent > 0 ? (
-                      <svgt Area Growth
+                      <svg
                         className="w-8 h-8 text-green-500"
-                        fill="none"x items-center mb-4">
-                        stroke="currentColor"nt-bold">
-                        viewBox="0 0 24 24"rowthPercent.toFixed(1)}%
-                        xmlns="http://www.w3.org/2000/svg"
-                      >className="ml-3">
-                        <pathata.treatmentGrowthPercent > 0 ? (
-                          strokeLinecap="round"
-                          strokeLinejoin="round"green-500"
-                          strokeWidth={2}
-                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    ) : summaryData.treatmentGrowthPercent < 0 ? (
-                      <svgath
-                        className="w-8 h-8 text-red-500"
-                        fill="none"ejoin="round"
+                        fill="none"
                         stroke="currentColor"
-                        viewBox="0 0 24 24"0-8l-8 8-4-4-6 6"
+                        viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg"
-                      >/svg>
-                        <pathryData.treatmentGrowthPercent < 0 ? (
-                          strokeLinecap="round"
-                          strokeLinejoin="round"red-500"
-                          strokeWidth={2}
-                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    ) : (
-                      <svgath
-                        className="w-8 h-8 text-gray-400"
-                        fill="none"ejoin="round"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"8m0 8l-8-8-4 4-6-6"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >/svg>
+                      >
                         <path
                           strokeLinecap="round"
-                          strokeLinejoin="round"gray-400"
+                          strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M5 12h14"tColor"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    )}>
-                  </div><path
-                </div>    strokeLinecap="round"
+                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                        />
+                      </svg>
+                    ) : summaryData.treatmentGrowthPercent < 0 ? (
+                      <svg
+                        className="w-8 h-8 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 12h14"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
                 <div className="text-sm text-gray-600">
-                  <p className="mb-1">{2}
+                  <p className="mb-1">
                     Current month:{" "}
                     {summaryData.treatmentVaccinations.toLocaleString()} doses
-                  </p></svg>
-                  <p>}
+                  </p>
+                  <p>
                     Previous month:{" "}
                     {summaryData.prevTreatmentVaccinations.toLocaleString()}{" "}
-                    dosessName="text-sm text-gray-600">
-                  </p>lassName="mb-1">
+                    doses
+                  </p>
                   <p className="mt-2 text-xs text-gray-500">
-                    Month-over-month growth for Treatment AreasString()} doses
+                    Month-over-month growth for Treatment Areas
                   </p>
                 </div>
-              </div>Previous month:{" "}
-                    {summaryData.prevTreatmentVaccinations.toLocaleString()}{" "}
+              </div>
               {/* Control Growth Box */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">>
-                  Control Area Growthgrowth for Treatment Areas
-                </h2>>
+                <h2 className="text-xl font-semibold mb-4">
+                  Control Area Growth
+                </h2>
                 <div className="flex items-center mb-4">
                   <div className="text-2xl font-bold">
                     {summaryData.controlGrowthPercent.toFixed(1)}%
-                  </div>l Growth Box */}
-                  <div className="ml-3">ounded-lg shadow p-6">
+                  </div>
+                  <div className="ml-3">
                     {summaryData.controlGrowthPercent > 0 ? (
-                      <svgArea Growth
+                      <svg
                         className="w-8 h-8 text-green-500"
-                        fill="none"x items-center mb-4">
-                        stroke="currentColor"nt-bold">
-                        viewBox="0 0 24 24"wthPercent.toFixed(1)}%
-                        xmlns="http://www.w3.org/2000/svg"
-                      >className="ml-3">
-                        <pathata.controlGrowthPercent > 0 ? (
-                          strokeLinecap="round"
-                          strokeLinejoin="round"green-500"
-                          strokeWidth={2}
-                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    ) : summaryData.controlGrowthPercent < 0 ? (
-                      <svgath
-                        className="w-8 h-8 text-red-500"
-                        fill="none"ejoin="round"
+                        fill="none"
                         stroke="currentColor"
-                        viewBox="0 0 24 24"0-8l-8 8-4-4-6 6"
+                        viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg"
-                      >/svg>
-                        <pathryData.controlGrowthPercent < 0 ? (
-                          strokeLinecap="round"
-                          strokeLinejoin="round"red-500"
-                          strokeWidth={2}
-                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    ) : (
-                      <svgath
-                        className="w-8 h-8 text-gray-400"
-                        fill="none"ejoin="round"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"8m0 8l-8-8-4 4-6-6"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >/svg>
+                      >
                         <path
                           strokeLinecap="round"
-                          strokeLinejoin="round"gray-400"
+                          strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M5 12h14"tColor"
-                        />ewBox="0 0 24 24"
-                      </svg>s="http://www.w3.org/2000/svg"
-                    )}>
-                  </div><path
-                </div>    strokeLinecap="round"
+                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                        />
+                      </svg>
+                    ) : summaryData.controlGrowthPercent < 0 ? (
+                      <svg
+                        className="w-8 h-8 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 12h14"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
                 <div className="text-sm text-gray-600">
-                  <p className="mb-1">{2}
+                  <p className="mb-1">
                     Current month:{" "}
                     {summaryData.controlVaccinations.toLocaleString()} doses
-                  </p></svg>
-                  <p>}
+                  </p>
+                  <p>
                     Previous month:{" "}
                     {summaryData.prevControlVaccinations.toLocaleString()} doses
-                  </p>lassName="text-sm text-gray-600">
+                  </p>
                   <p className="mt-2 text-xs text-gray-500">
                     Month-over-month growth for Control Areas
-                  </p>ummaryData.controlVaccinations.toLocaleString()} doses
+                  </p>
                 </div>
-              </div>>
-            </div>  Previous month:{" "}
-                    {summaryData.prevControlVaccinations.toLocaleString()} doses
+              </div>
+            </div>
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Recent Activity</h2>
@@ -1126,22 +1134,21 @@ const Dashboard = () => {
 
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>ssName="text-xl font-semibold">Recent Activity</h2>
+                  <div>
                     <h3 className="text-lg font-medium mb-2">Reports</h3>
-                    <div className="flex items-end gap-2">)}
+                    <div className="flex items-end gap-2">
                       <span className="text-2xl font-bold">
                         {summaryData.recentReports}
                       </span>
                       <span className="text-sm text-gray-600">
-                        in the last 30 daysols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        in the last 30 days
                       </span>
-                    </div>assName="text-lg font-medium mb-2">Reports</h3>
-                  </div> className="flex items-end gap-2">
-                </div><span className="text-2xl font-bold">
-              </div>    {summaryData.recentReports}
-            </div>    </span>
-                      <span className="text-sm text-gray-600">
-            <div className="mb-8">t 30 days
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mb-8">
               {/* Two Column Layout - Chart on Left, Stats on Right */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                 {/* Left Column - Vaccination Chart */}
@@ -1149,20 +1156,19 @@ const Dashboard = () => {
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">
                       Vaccination Doses ({format(selectedDate, "MMMM yyyy")})
-                    </h2>e="mb-8">
-                    <ErrorBoundaryt - Chart on Left, Stats on Right */}
-                      fallback={<div>Chart could not be displayed</div>}">
-                    >eft Column - Vaccination Chart */}
-                      <VaccinationChartspan-2">
-                        data={stats.monthlyData}ed-lg shadow-md p-6">
-                        height="300px"t-xl font-bold mb-4">
-                      />ccination Doses ({format(selectedDate, "MMMM yyyy")})
-                    </ErrorBoundary>
-                  </div>orBoundary
-                </div>fallback={<div>Chart could not be displayed</div>}
+                    </h2>
+                    <ErrorBoundary
+                      fallback={<div>Chart could not be displayed</div>}
                     >
+                      <VaccinationChart
+                        data={stats.monthlyData}
+                        height="300px"
+                      />
+                    </ErrorBoundary>
+                  </div>
+                </div>
                 {/* Right Column - Stats and Links */}
-                <div className="space-y-8">Data}
+                <div className="space-y-8">
                   {/* Doses by State Card */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">
@@ -1170,199 +1176,187 @@ const Dashboard = () => {
                     </h2>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {Object.entries(stateStats).map(([state, doses]) => (
-                        <divme="space-y-8">
+                        <div
                           key={`state-${state}`}
                           className="flex justify-between items-center"
-                        >lassName="text-xl font-bold mb-4">
-                          <span>{state}</span>selectedDate, "MMMM yyyy")})
+                        >
+                          <span>{state}</span>
                           <span className="font-semibold">{doses} doses</span>
-                        </div>Name="space-y-2 max-h-48 overflow-y-auto">
-                      ))}ject.entries(stateStats).map(([state, doses]) => (
-                    </div>iv
-                  </div>  key={`state-${state}`}
-                          className="flex justify-between items-center"
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   {/* Quick Links Card */}
                   <div className="bg-white rounded-lg shadow-md p-6">
-                    <h2 className="text-xl font-bold mb-4">Quick Links</h2>an>
+                    <h2 className="text-xl font-bold mb-4">Quick Links</h2>
                     <div className="space-y-2">
                       <Link
                         href="/add-center"
                         className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
                       >
                         Add New Healthcare Center
-                      </Link>ame="bg-white rounded-lg shadow-md p-6">
-                      <LinkssName="text-xl font-bold mb-4">Quick Links</h2>
-                        href="/"me="space-y-2">
-                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                      > href="/add-center"
-                        View All Centers w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
                       </Link>
-                      <Link New Healthcare Center
+                      <Link
+                        href="/"
+                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                      >
+                        View All Centers
+                      </Link>
+                      <Link
                         href="/reports"
                         className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
-                      > href="/"
-                        View All Reports w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                      >
+                        View All Reports
                       </Link>
-                    </div>ew All Centers
-                  </div>Link>
-                </div><Link
-              </div>    href="/reports"
-                        className="block w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded"
+                    </div>
+                  </div>
+                </div>
+              </div>
               {/* Map - Full Width - Now below other elements */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-4">
                   Healthcare Centers Map
-                </h2>iv>
+                </h2>
                 <div style={{ height: "500px", width: "100%" }}>
                   <ErrorBoundary
                     fallback={<div>Map could not be displayed</div>}
-                  >ap - Full Width - Now below other elements */}
-                    <MapComponentwhite rounded-lg shadow-md p-6">
-                      centers={filteredCenters}ibold mb-4">
-                      height="500px" Map
+                  >
+                    <MapComponent
+                      centers={filteredCenters}
+                      height="500px"
                       onCenterSelect={(center) => {
                         console.log("Center clicked:", center.name);
-                      }}Boundary
-                      onTreatmentToggle={handleTreatmentToggle}div>}
+                      }}
+                      onTreatmentToggle={handleTreatmentToggle}
                     />
                   </ErrorBoundary>
-                </div>centers={filteredCenters}
-              </div>  height="500px"
-            </div>    onCenterSelect={(center) => {
-                        console.log("Center clicked:", center.name);
+                </div>
+              </div>
+            </div>
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Recent Reports</h2>
-                <LinkrrorBoundary>
+                <Link
                   href="/reports"
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >>
+                >
                   View all reports →
-                </Link>ame="mb-8">
-              </div>lassName="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Recent Reports</h2>
+                </Link>
+              </div>
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">:text-blue-800 text-sm font-medium"
+                  <thead className="bg-gray-50">
                     <tr>
-                      <thl reports →
+                      <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        Centerbg-white rounded-lg shadow overflow-hidden">
-                      </th>sName="min-w-full divide-y divide-gray-200">
-                      <thclassName="bg-gray-50">
+                        Center
+                      </th>
+                      <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      > scope="col"
-                        MonthName="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Month
                       </th>
-                      <thenter
+                      <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      > scope="col"
-                        Vaccinationsx-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Vaccinations
                       </th>
-                      <thonth
+                      <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      > scope="col"
-                        TypesName="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Type
                       </th>
-                      <thaccinations
+                      <th
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      > scope="col"
-                        Date Submitted6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Date Submitted
                       </th>
-                    </tr>ype
-                  </thead>>
+                    </tr>
+                  </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {recentCenterReports && recentCenterReports.length > 0 ? (
-                      recentCenterReports.map((report) => (-xs font-medium text-gray-500 uppercase tracking-wider"
+                      recentCenterReports.map((report) => (
                         <tr key={report.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="font-medium text-gray-900">
                               {report.healthcare_center?.name ||
                                 "Unknown Center"}
-                            </div>="bg-white divide-y divide-gray-200">
-                            <div className="text-sm text-gray-500">gth > 0 ? (
+                            </div>
+                            <div className="text-sm text-gray-500">
                               {report.healthcare_center ? (
-                                <>eport.id} className="hover:bg-gray-50">
-                                  {report.healthcare_center.state ||">
-                                    "Unknown State"}ium text-gray-900">
-                                  ,{" "}althcare_center?.name ||
+                                <>
+                                  {report.healthcare_center.state ||
+                                    "Unknown State"}
+                                  ,{" "}
                                   {report.healthcare_center.lga ||
                                     "Unknown LGA"}
-                                </>assName="text-sm text-gray-500">
-                              ) : (rt.healthcare_center ? (
+                                </>
+                              ) : (
                                 "Location unavailable"
-                              )}  {report.healthcare_center.state ||
-                            </div>  "Unknown State"}
-                          </td>   ,{" "}
+                              )}
+                            </div>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {report.reporting_month
                               ? format(
                                   new Date(report.reporting_month),
-                                  "MMMM yyyy"vailable"
+                                  "MMMM yyyy"
                                 )
                               : "Unknown Date"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             {typeof report.total_vaccinations === "number"
                               ? report.total_vaccinations
-                              : 0}new Date(report.reporting_month),
-                          </td>   "MMMM yyyy"
+                              : 0}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <spanUnknown Date"}
+                            <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                report.healthcare_center?.is_treatment_aream font-medium">
-                                  ? "bg-green-100 text-green-800" "number"
+                                report.healthcare_center?.is_treatment_area
+                                  ? "bg-green-100 text-green-800"
                                   : "bg-red-100 text-red-800"
-                              }`}}
-                            >d>
+                              }`}
+                            >
                               {report.healthcare_center?.is_treatment_area
                                 ? "Treatment"
-                                : "Control"}-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            </span>ort.healthcare_center?.is_treatment_area
-                          </td>   ? "bg-green-100 text-green-800"
+                                : "Control"}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {report.created_at
                               ? format(new Date(report.created_at), "PP")
-                              : "Unknown"}thcare_center?.is_treatment_area
-                          </td> ? "Treatment"
-                        </tr>   : "Control"}
-                      ))    </span>
-                    ) : ( </td>
-                      <tr><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <td {report.created_at
-                          colSpan={5}t(new Date(report.created_at), "PP")
+                              : "Unknown"}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={5}
                           className="px-6 py-4 text-center text-sm text-gray-500"
-                        > </td>
+                        >
                           No recent reports found
                         </td>
                       </tr>
-                    )}<tr>
-                  </tbody>d
-                </table>  colSpan={5}
-              </div>      className="px-6 py-4 text-center text-sm text-gray-500"
-            </div>      >
-          </>             No recent reports found
-        )}              </td>
-      </main>         </tr>
-    </div>          )}
-  );              </tbody>
-};              </table>
+                    )}
+                  </tbody>
+                </table>
               </div>
-import { GetServerSidePropsContext } from "next";
+            </div>
           </>
-export async function getServerSideProps({ req }: GetServerSidePropsContext) {
-  // We'll let the client-side ProtectedRoute component handle authentication
-  // This simplifies the server-side logic
-  return { props: {} };
+        )}
+      </main>
+    </div>
+  );
 };
 
-export default Dashboard;psContext } from "next";
+import { GetServerSidePropsContext } from "next";
 
 export async function getServerSideProps({ req }: GetServerSidePropsContext) {
   // We'll let the client-side ProtectedRoute component handle authentication
