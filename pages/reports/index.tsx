@@ -244,3 +244,16 @@ export default function Reports() {
         toast.success(`Successfully exported ${result.count || 0} reports to ${result.fileName}`);
       } else {
         console.error("Export error:", result.error);
+        const errorMessage = typeof result.error === 'object' && result.error !== null 
+          ? (result.error as any).message || 'Unknown error' 
+          : 'Unknown error';
+        toast.error(`Failed to export reports: ${errorMessage}`);
+      }
+    } catch (error: any) {
+      console.error("Error during export:", error);
+      toast.error(`Export failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setExporting((prev) => ({ ...prev, reports: false }));
+    }
+  };
+}
