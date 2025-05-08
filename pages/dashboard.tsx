@@ -596,12 +596,13 @@ const Dashboard = () => {
 
           console.log("Original monthly data:", monthlyData);
 
-          // Get the current month in yyyy-MM-01 format for filtering
-          const currentDate = new Date();
-          const currentYearMonth = format(currentDate, "yyyy-MM");
-          const currentMonthFormatted = `${currentYearMonth}-01`;
+          // Get the currently selected month format for filtering (not the current calendar month)
+          const selectedYearMonth = format(selectedDate, "yyyy-MM");
+          const selectedMonthFormatted = `${selectedYearMonth}-01`;
 
-          // Track centers with zero doses
+          console.log("Looking for zero doses in month:", selectedYearMonth);
+
+          // Track centers with zero doses for the SELECTED month (not current month)
           let treatmentCentersWithZeroDoses = 0;
           let controlCentersWithZeroDoses = 0;
           let totalTreatmentCenters = 0;
@@ -616,23 +617,28 @@ const Dashboard = () => {
             }
           });
 
-          // Create a map to track which centers have reports
+          // Create a map to track which centers have reports for the SELECTED month
           const centerReportsMap = new Map();
 
-          // Process reports to find centers with zero doses
+          // Process reports to find centers with doses in the selected month
           reports.forEach((report) => {
-            // Only consider current month reports
-            if (report.report_month?.startsWith(currentYearMonth)) {
-              const center = centers.find((c) => c.id === report.center_id);
-              if (center) {
-                centerReportsMap.set(report.center_id, report.total_doses || 0);
-              }
+            // Only consider selected month reports - exact match on yyyy-MM-01
+            if (report.report_month === selectedMonthFormatted) {
+              console.log(
+                `Found report for ${report.report_month} with doses: ${report.total_doses}`
+              );
+              centerReportsMap.set(report.center_id, report.total_doses || 0);
             }
           });
+
+          console.log(
+            `Found ${centerReportsMap.size} center reports for ${selectedMonthFormatted}`
+          );
 
           // Count centers with zero doses (reported zero or missing reports)
           centers.forEach((center) => {
             const doses = centerReportsMap.get(center.id);
+            // A center has zero doses if no report exists OR report shows zero doses
             const hasZeroDoses = doses === 0 || doses === undefined;
 
             if (hasZeroDoses) {
@@ -642,6 +648,13 @@ const Dashboard = () => {
                 controlCentersWithZeroDoses++;
               }
             }
+          });
+
+          console.log("Zero doses calculation:", {
+            treatmentTotal: totalTreatmentCenters,
+            treatmentZero: treatmentCentersWithZeroDoses,
+            controlTotal: totalControlCenters,
+            controlZero: controlCentersWithZeroDoses,
           });
 
           // Calculate percentages
