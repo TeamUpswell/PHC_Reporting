@@ -1047,37 +1047,39 @@ const Dashboard = () => {
       console.log(`Processing month: ${format(targetDate, "MMM yyyy")}, Future month? ${isInFuture}`);
       
       // Filter reports for this specific month - with more flexible matching
-      const monthReports = !isInFuture ? reportsData?.filter((report) => {
-        // Skip if no date info
-        if (!report.report_month && !report.report_date) {
-          return false;
-        }
-        
-        // Try different date formats for matching
-        try {
-          const reportDate = report.report_month 
-            ? parseISO(report.report_month)
-            : parseISO(report.report_date);
+      const monthReports = !isInFuture && reportsData 
+        ? reportsData.filter((report) => {
+            // Skip if no date info
+            if (!report.report_month && !report.report_date) {
+              return false;
+            }
             
-          const reportMonthString = format(reportDate, "yyyy-MM");
-          const matched = reportMonthString === targetMonthString;
-          
-          if (matched) {
-            console.log(`Found match for ${targetMonthString}: Report date: ${report.report_month}`);
-          }
-          
-          return matched;
-        } catch (err) {
-          console.error("Error parsing report date:", err);
-          return false;
-        }
-      }) : [];
+            // Try different date formats for matching
+            try {
+              const reportDate = report.report_month 
+                ? parseISO(report.report_month)
+                : parseISO(report.report_date);
+                
+              const reportMonthString = format(reportDate, "yyyy-MM");
+              const matched = reportMonthString === targetMonthString;
+              
+              if (matched) {
+                console.log(`Found match for ${targetMonthString}: Report date: ${report.report_month}`);
+              }
+              
+              return matched;
+            } catch (err) {
+              console.error("Error parsing report date:", err);
+              return false;
+            }
+          })
+        : [];
       
       // Log how many reports found for this month
       console.log(`Found ${monthReports?.length || 0} reports for ${format(targetDate, "MMM yyyy")}`);
 
-      // Calculate total doses for this month
-      const totalDoses = !isInFuture && monthReports?.length > 0 
+      // Calculate total doses for this month - FIX: Use proper null/array check
+      const totalDoses = monthReports && monthReports.length > 0
         ? monthReports.reduce((sum, report) => {
             // Handle different ways doses might be stored
             let dosesValue = 0;
