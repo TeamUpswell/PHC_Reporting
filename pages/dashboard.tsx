@@ -1037,42 +1037,62 @@ const Dashboard = () => {
     // Show 2 months before and 3 months after the selected month
     for (let i = -2; i <= 3; i++) {
       const targetDate = addMonths(selectedDate, i);
-      const targetMonth = format(targetDate, "yyyy-MM");
-      const targetMonthFormatted = format(targetDate, "yyyy-MM-01");
+      const targetMonthString = format(targetDate, "yyyy-MM");
       
       // Check if we're trying to show future months beyond now
       const now = new Date();
       const isInFuture = targetDate > now;
       
-      // Filter reports for this month
-      const monthReports = reportsData?.filter((report) => {
-        // Don't attempt to show data for future months
-        if (isInFuture) return false;
+      // Debug log
+      console.log(`Processing month: ${format(targetDate, "MMM yyyy")}, Future month? ${isInFuture}`);
+      
+      // Filter reports for this specific month - with more flexible matching
+      const monthReports = !isInFuture ? reportsData?.filter((report) => {
+        // Skip if no date info
+        if (!report.report_month && !report.report_date) {
+          return false;
+        }
         
-        // Handle different date formats that might be in your data
-        if (!report.report_date && !report.report_month) return false;
-        
-        const reportDate = report.report_month
-          ? new Date(report.report_month)
-          : new Date(report.report_date);
+        // Try different date formats for matching
+        try {
+          const reportDate = report.report_month 
+            ? parseISO(report.report_month)
+            : parseISO(report.report_date);
+            
+          const reportMonthString = format(reportDate, "yyyy-MM");
+          const matched = reportMonthString === targetMonthString;
           
-        const reportMonth = format(reportDate, "yyyy-MM");
-        return reportMonth === targetMonth;
-      });
+          if (matched) {
+            console.log(`Found match for ${targetMonthString}: Report date: ${report.report_month}`);
+          }
+          
+          return matched;
+        } catch (err) {
+          console.error("Error parsing report date:", err);
+          return false;
+        }
+      }) : [];
+      
+      // Log how many reports found for this month
+      console.log(`Found ${monthReports?.length || 0} reports for ${format(targetDate, "MMM yyyy")}`);
 
       // Calculate total doses for this month
-      const totalDoses = isInFuture ? null : monthReports?.reduce((sum, report) => {
-        // Handle different ways doses might be stored
-        let dosesValue = 0;
+      const totalDoses = !isInFuture && monthReports?.length > 0 
+        ? monthReports.reduce((sum, report) => {
+            // Handle different ways doses might be stored
+            let dosesValue = 0;
 
-        if (typeof report.total_doses === "number") {
-          dosesValue = report.total_doses;
-        } else if (report.fixed_doses || report.outreach_doses) {
-          dosesValue = (report.fixed_doses || 0) + (report.outreach_doses || 0);
-        }
+            if (typeof report.total_doses === "number") {
+              dosesValue = report.total_doses;
+            } else if (report.fixed_doses || report.outreach_doses) {
+              dosesValue = (report.fixed_doses || 0) + (report.outreach_doses || 0);
+            }
 
-        return sum + dosesValue;
-      }, 0);
+            return sum + dosesValue;
+          }, 0)
+        : 0;
+      
+      console.log(`Total doses for ${format(targetDate, "MMM yyyy")}: ${totalDoses}`);
 
       // Add month data, highlighting the selected month
       const isSelectedMonth = i === 0;
@@ -1080,13 +1100,13 @@ const Dashboard = () => {
       monthlyData.push({
         month: format(targetDate, "MMM"),
         fullLabel: format(targetDate, "MMMM yyyy"),
-        doses: isInFuture ? 0 : (totalDoses || 0),
+        doses: totalDoses,
         isSelected: isSelectedMonth
       });
     }
 
     // Debug output
-    console.log("Generated monthly data centered on selected month:", monthlyData);
+    console.log("Final monthly data:", monthlyData);
 
     return monthlyData;
   };
