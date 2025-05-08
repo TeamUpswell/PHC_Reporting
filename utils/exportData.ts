@@ -72,7 +72,8 @@ export const exportCentersToCSV = async () => {
  */
 export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date }) => {
   try {
-    let query = supabase
+    // First fetch all reports
+    const { data: reports, error } = await supabase
       .from('monthly_reports')
       .select(`
         id,
@@ -88,21 +89,40 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
         has_stockout,
         stockout_days,
         created_at
-      `)
-      .order('report_month', { ascending: false });
-    
-    // Apply date range filter if provided
-    if (dateRange) {
-      const startStr = format(dateRange.start, 'yyyy-MM-dd');
-      const endStr = format(dateRange.end, 'yyyy-MM-dd');
-      query = query.gte('report_month', startStr).lte('report_month', endStr);
-    }
-    
-    const { data: reports, error } = await query;
+      `);
     
     if (error) throw error;
     if (!reports || reports.length === 0) {
       throw new Error('No reports found to export');
+    }
+    
+    // Filter by date range in JavaScript instead of SQL
+    let filteredReports = reports;
+    if (dateRange) {
+      const startTime = dateRange.start.getTime();
+      const endTime = dateRange.end.getTime();
+      
+      filteredReports = reports.filter(report => {
+        if (!report.report_month) return false;
+        
+        try {
+          // Parse the report date
+          const reportDate = new Date(report.report_month);
+          const reportTime = reportDate.getTime();
+          
+          // Check if it's within range
+          return reportTime >= startTime && reportTime <= endTime;
+        } catch (err) {
+          console.error('Error parsing report date:', report.report_month);
+          return false;
+        }
+      });
+    }
+    
+    console.log(`Filtered ${reports.length} reports to ${filteredReports.length} for export`);
+    
+    if (filteredReports.length === 0) {
+      throw new Error('No reports found in the selected date range');
     }
     
     // Define CSV headers
@@ -123,11 +143,11 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
     ];
     
     // Convert data to CSV rows
-    const rows = reports.map(report => [
+    const rows = filteredReports.map(report => [
       report.id,
       report.center_id,
-      `"${report.center_name?.replace(/"/g, '""') || ''}"`,
-      report.report_month ? format(new Date(report.report_month), 'yyyy-MM') : '',
+      `"${(report.center_name || '').replace(/"/g, '""')}"`,
+      report.report_month || '',
       report.fixed_doses ?? '',
       report.outreach_doses ?? '',
       report.total_doses ?? '',
@@ -136,7 +156,7 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
       report.stock_at_hand ?? '',
       report.has_stockout ? 'Yes' : 'No',
       report.stockout_days ?? '',
-      report.created_at ? format(new Date(report.created_at), 'yyyy-MM-dd HH:mm') : ''
+      report.created_at || ''
     ]);
     
     // Combine headers and rows
@@ -149,18 +169,23 @@ export const exportReportsToCSV = async (dateRange?: { start: Date, end: Date })
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
     
     // Include date range in filename if provided
-    let fileName = 'monthly-reports';
-    if (dateRange) {
-      fileName += `-${format(dateRange.start, 'yyyy-MM')}-to-${format(dateRange.end, 'yyyy-MM')}`;
-    }
-    fileName += `-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    const fileName = `monthly-reports-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     
     saveAs(blob, fileName);
     
-    return { success: true, fileName };
-  } catch (error) {
+    return { 
+      success: true, 
+      fileName,
+      count: filteredReports.length 
+    };
+  } catch (error: any) {
     console.error('Error exporting reports:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: { 
+        message: error.message || 'Unknown error during export' 
+      } 
+    };
   }
 };
 

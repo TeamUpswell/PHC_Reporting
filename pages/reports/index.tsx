@@ -219,25 +219,38 @@ export default function Reports() {
   };
 
   const handleExportReports = async () => {
-    setExporting((prev) => ({ ...prev, reports: true }));
+    setExporting(prev => ({ ...prev, reports: true }));
     try {
-      // Optional: Define a date range if you want to filter reports by date
+      console.log("Starting reports export");
+      
+      // Create a simpler date range - just use ISO strings for clarity
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      
       const dateRange = {
-        start: new Date(new Date().setMonth(new Date().getMonth() - 6)), // Last 6 months
-        end: new Date(),
+        start: sixMonthsAgo,
+        end: new Date()
       };
-
+      
+      console.log("Date range for export:", {
+        start: dateRange.start.toISOString(),
+        end: dateRange.end.toISOString()
+      });
+      
+      // Use try-catch inside the export function for better error handling
       const result = await exportReportsToCSV(dateRange);
+      
       if (result.success) {
-        toast.success(`Successfully exported reports to ${result.fileName}`);
+        toast.success(`Successfully exported ${result.count || 0} reports to ${result.fileName}`);
       } else {
-        toast.error("Failed to export monthly reports");
+        console.error("Export error:", result.error);
+        toast.error(`Failed to export reports: ${result.error?.message || 'Unknown error'}`);
       }
-    } catch (error) {
-      console.error("Error exporting reports:", error);
-      toast.error("An error occurred while exporting reports");
+    } catch (error: any) {
+      console.error("Error during export:", error);
+      toast.error(`Export failed: ${error.message || 'Unknown error'}`);
     } finally {
-      setExporting((prev) => ({ ...prev, reports: false }));
+      setExporting(prev => ({ ...prev, reports: false }));
     }
   };
 
