@@ -929,14 +929,15 @@ const Dashboard = () => {
                 icon="exclamation-triangle"
                 color="red"
                 trend={
+                  stats.zeroDoses?.treatmentCenters.change !== undefined &&
                   stats.zeroDoses?.treatmentCenters.change !== 0
                     ? {
                         direction:
-                          stats.zeroDoses?.treatmentCenters.change < 0
+                          (stats.zeroDoses?.treatmentCenters.change ?? 0) < 0
                             ? "down"
                             : "up",
                         percentage: `${Math.abs(
-                          stats.zeroDoses?.treatmentCenters.change || 0
+                          stats.zeroDoses?.treatmentCenters.change ?? 0
                         ).toFixed(1)}%`,
                       }
                     : null
@@ -951,14 +952,15 @@ const Dashboard = () => {
                 icon="exclamation-triangle"
                 color="yellow"
                 trend={
+                  stats.zeroDoses?.controlCenters.change !== undefined &&
                   stats.zeroDoses?.controlCenters.change !== 0
                     ? {
                         direction:
-                          stats.zeroDoses?.controlCenters.change < 0
+                          (stats.zeroDoses?.controlCenters.change ?? 0) < 0
                             ? "down"
                             : "up",
                         percentage: `${Math.abs(
-                          stats.zeroDoses?.controlCenters.change || 0
+                          stats.zeroDoses?.controlCenters.change ?? 0
                         ).toFixed(1)}%`,
                       }
                     : null
