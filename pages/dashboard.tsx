@@ -52,6 +52,20 @@ interface DashboardStats {
     fullLabel: string;
     doses: number;
   }>;
+  zeroDoses?: {
+    treatmentCenters: {
+      count: number;
+      total: number;
+      percent: number;
+      change?: number;
+    };
+    controlCenters: {
+      count: number;
+      total: number;
+      percent: number;
+      change?: number;
+    };
+  };
 }
 
 interface SummaryData {
@@ -145,6 +159,10 @@ const Dashboard = () => {
     recentReports: 0,
     areaStats: {},
     monthlyData: [],
+    zeroDoses: {
+      treatmentCenters: { count: 0, total: 0, percent: 0, change: 0 },
+      controlCenters: { count: 0, total: 0, percent: 0, change: 0 },
+    },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -574,6 +592,95 @@ const Dashboard = () => {
 
           console.log("Original monthly data:", monthlyData);
 
+          // Get the current month in yyyy-MM-01 format for filtering
+          const currentDate = new Date();
+          const currentYearMonth = format(currentDate, "yyyy-MM");
+          const currentMonthFormatted = `${currentYearMonth}-01`;
+
+          // Track centers with zero doses
+          let treatmentCentersWithZeroDoses = 0;
+          let controlCentersWithZeroDoses = 0;
+          let totalTreatmentCenters = 0;
+          let totalControlCenters = 0;
+
+          // Count treatment vs control centers
+          centers.forEach((center) => {
+            if (center.is_treatment_area) {
+              totalTreatmentCenters++;
+            } else {
+              totalControlCenters++;
+            }
+          });
+
+          // Create a map to track which centers have reports
+          const centerReportsMap = new Map();
+
+          // Process reports to find centers with zero doses
+          reports.forEach((report) => {
+            // Only consider current month reports
+            if (report.report_month?.startsWith(currentYearMonth)) {
+              const center = centers.find((c) => c.id === report.center_id);
+              if (center) {
+                centerReportsMap.set(report.center_id, report.total_doses || 0);
+              }
+            }
+          });
+
+          // Count centers with zero doses (reported zero or missing reports)
+          centers.forEach((center) => {
+            const doses = centerReportsMap.get(center.id);
+            const hasZeroDoses = doses === 0 || doses === undefined;
+
+            if (hasZeroDoses) {
+              if (center.is_treatment_area) {
+                treatmentCentersWithZeroDoses++;
+              } else {
+                controlCentersWithZeroDoses++;
+              }
+            }
+          });
+
+          // Calculate percentages
+          const treatmentZeroPercent =
+            totalTreatmentCenters > 0
+              ? (treatmentCentersWithZeroDoses / totalTreatmentCenters) * 100
+              : 0;
+
+          const controlZeroPercent =
+            totalControlCenters > 0
+              ? (controlCentersWithZeroDoses / totalControlCenters) * 100
+              : 0;
+
+          // Calculate changes
+          const treatmentChange =
+            stats.zeroDoses?.treatmentCenters.percent !== undefined
+              ? treatmentZeroPercent - stats.zeroDoses?.treatmentCenters.percent
+              : 0;
+
+          const controlChange =
+            stats.zeroDoses?.controlCenters.percent !== undefined
+              ? controlZeroPercent - stats.zeroDoses?.controlCenters.percent
+              : 0;
+
+          // Add these values to your stats
+          setStats((prevStats) => ({
+            ...prevStats,
+            zeroDoses: {
+              treatmentCenters: {
+                count: treatmentCentersWithZeroDoses,
+                total: totalTreatmentCenters,
+                percent: treatmentZeroPercent,
+                change: treatmentChange,
+              },
+              controlCenters: {
+                count: controlCentersWithZeroDoses,
+                total: totalControlCenters,
+                percent: controlZeroPercent,
+                change: controlChange,
+              },
+            },
+          }));
+
           setStats({
             totalCenters: centers.length,
             totalDoses,
@@ -807,6 +914,55 @@ const Dashboard = () => {
                 icon="💪"
                 trend={undefined}
                 color="blue"
+              />
+            </div>
+
+            {/* Zero Doses Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Treatment Areas Zero Doses Card */}
+              <DashboardCard
+                title="Treatment Centers with Zero Doses"
+                value={`${stats.zeroDoses?.treatmentCenters.percent.toFixed(
+                  1
+                )}%`}
+                subValue={`${stats.zeroDoses?.treatmentCenters.count} of ${stats.zeroDoses?.treatmentCenters.total} centers`}
+                icon="exclamation-triangle"
+                color="red"
+                trend={
+                  stats.zeroDoses?.treatmentCenters.change !== 0
+                    ? {
+                        direction:
+                          stats.zeroDoses?.treatmentCenters.change < 0
+                            ? "down"
+                            : "up",
+                        percentage: `${Math.abs(
+                          stats.zeroDoses?.treatmentCenters.change || 0
+                        ).toFixed(1)}%`,
+                      }
+                    : null
+                }
+              />
+
+              {/* Control Areas Zero Doses Card */}
+              <DashboardCard
+                title="Control Centers with Zero Doses"
+                value={`${stats.zeroDoses?.controlCenters.percent.toFixed(1)}%`}
+                subValue={`${stats.zeroDoses?.controlCenters.count} of ${stats.zeroDoses?.controlCenters.total} centers`}
+                icon="exclamation-triangle"
+                color="yellow"
+                trend={
+                  stats.zeroDoses?.controlCenters.change !== 0
+                    ? {
+                        direction:
+                          stats.zeroDoses?.controlCenters.change < 0
+                            ? "down"
+                            : "up",
+                        percentage: `${Math.abs(
+                          stats.zeroDoses?.controlCenters.change || 0
+                        ).toFixed(1)}%`,
+                      }
+                    : null
+                }
               />
             </div>
 
