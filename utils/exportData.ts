@@ -23,33 +23,35 @@ export const exportCentersToCSV = async () => {
     // Define CSV headers based on your center data structure
     const headers = [
       "ID",
+      "Area",
       "Name",
-      "State",
       "LGA",
-      "Ward",
-      "Type",
-      "Category",
-      "Is Treatment Area",
-      "Longitude",
+      "Address",
+      "Phone",
+      "Vaccination Days",
+      "Working Hours",
       "Latitude",
-      "Created At",
+      "Longitude",
+      "State",
+      "Is Treatment Area",
+      "Created By"
     ];
 
     // Convert data to CSV rows
     const rows = centers.map((center) => [
-      center.id,
-      `"${center.name?.replace(/"/g, '""') || ""}"`, // Handle quotes in names
-      `"${center.state?.replace(/"/g, '""') || ""}"`,
+      center.id || "",
+      `"${center.area?.replace(/"/g, '""') || ""}"`,
+      `"${center.name?.replace(/"/g, '""') || ""}"`,
       `"${center.lga?.replace(/"/g, '""') || ""}"`,
-      `"${center.ward?.replace(/"/g, '""') || ""}"`,
-      `"${center.type?.replace(/"/g, '""') || ""}"`,
-      `"${center.category?.replace(/"/g, '""') || ""}"`,
-      center.is_treatment_area ? "Yes" : "No",
-      center.longitude || "",
+      `"${center.address?.replace(/"/g, '""') || ""}"`,
+      `"${center.phone?.replace(/"/g, '""') || ""}"`,
+      `"${center.vaccination_days?.replace(/"/g, '""') || ""}"`,
+      `"${center.working_hours?.replace(/"/g, '""') || ""}"`,
       center.latitude || "",
-      center.created_at
-        ? format(new Date(center.created_at), "yyyy-MM-dd")
-        : "",
+      center.longitude || "",
+      `"${center.state?.replace(/"/g, '""') || ""}"`,
+      center.is_treatment_area ? "Yes" : "No",
+      `"${center.created_by?.replace(/"/g, '""') || ""}"`,
     ]);
 
     // Combine headers and rows
