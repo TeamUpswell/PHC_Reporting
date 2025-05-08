@@ -76,69 +76,78 @@ export const exportCentersToCSV = async () => {
 /**
  * Export monthly reports to CSV
  */
-export async function exportReportsToCSV(dateRange?: {
-  start: Date;
-  end: Date;
-}) {
+export async function exportReportsToCSV(dateRange?: { start: Date; end: Date }) {
   try {
     // Fetch all monthly reports
     let query = supabase.from("monthly_reports").select(`
       *,
       center:healthcare_centers(id, name, area, lga, state)
     `);
-
+    
     // Apply date range filter if provided
     if (dateRange) {
       const startDate = format(dateRange.start, "yyyy-MM-dd");
       const endDate = format(dateRange.end, "yyyy-MM-dd");
       query = query.gte("report_month", startDate).lte("report_month", endDate);
     }
-
+    
     const { data, error } = await query;
-
+    
     if (error) throw error;
-
+    
     if (!data || data.length === 0) {
       return { success: false, error: "No data found" };
     }
-
-    // Format data for CSV
-    const csvData = data.map((report) => ({
-      "Center Name": report.center?.name || "Unknown",
-      Area: report.center?.area || "Unknown",
-      LGA: report.center?.lga || "Unknown",
-      State: report.center?.state || "Unknown",
+    
+    // Format data for CSV with all columns
+    const csvData = data.map(report => ({
+      "ID": report.id || "",
       "Report Month": format(parseISO(report.report_month), "MMMM yyyy"),
-      "Total Doses": report.total_doses || 0,
       "In Stock": report.in_stock ? "Yes" : "No",
-      Notes: report.notes || "",
+      "Stock Beginning": report.stock_beginning || 0,
+      "Stock End": report.stock_end || 0,
+      "Shortage": report.shortage ? "Yes" : "No",
+      "Shortage Response": report.shortage_response || "",
+      "Outreach": report.outreach ? "Yes" : "No",
+      "Fixed Doses": report.fixed_doses || 0,
+      "Outreach Doses": report.outreach_doses || 0,
+      "Total Doses": report.total_doses || 0,
+      "Misinformation": report.misinformation || "",
+      "DHIS Check": report.dhis_check ? "Yes" : "No",
+      "Created At": report.created_at ? format(parseISO(report.created_at), "yyyy-MM-dd HH:mm:ss") : "",
+      "Center ID": report.center_id || "",
+      "Center Name": report.center?.name || "Unknown",
+      "Created By": report.created_by || "",
+      "Center Area": report.center?.area || "",
+      "Center LGA": report.center?.lga || "",
+      "Center State": report.center?.state || ""
     }));
-
+    
     // Generate CSV string
     const csv = Papa.unparse(csvData);
-
+    
     // Create file name
     const timestamp = format(new Date(), "yyyyMMdd_HHmmss");
     const fileName = `monthly_reports_${timestamp}.csv`;
-
+    
     // Create download link
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-
+    
     link.setAttribute("href", url);
     link.setAttribute("download", fileName);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
+    
     return { success: true, fileName };
   } catch (error) {
     console.error("Error in exportReportsToCSV:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error" 
     };
   }
 }
