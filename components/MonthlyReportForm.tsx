@@ -97,11 +97,9 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
     setSuccess(false);
 
     try {
-      // Make sure total_doses is calculated
       const reportData = {
         ...formData,
-        total_doses:
-          (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
+        total_doses: (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
       };
 
       if (initialReport?.id) {
@@ -113,16 +111,16 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
         if (updateError) throw updateError;
       } else {
-  // Insert new report using upsert with conflict handling
-  const { error: insertError } = await supabase
-    .from("monthly_reports")
-    .upsert([reportData], {
-      onConflict: 'center_id,report_month',
-      ignoreDuplicates: false // set to true if you want to ignore (not update) duplicates
-    });
+        // Insert new report using upsert with conflict handling
+        const { error: insertError } = await supabase
+          .from("monthly_reports")
+          .upsert([reportData], {
+            onConflict: 'center_id,report_month',
+            ignoreDuplicates: false
+          });
 
-  if (insertError) throw insertError;
-}
+        if (insertError) throw insertError;
+      }
 
       setSuccess(true);
       onSave();
