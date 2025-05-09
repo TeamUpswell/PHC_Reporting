@@ -212,13 +212,28 @@ export default function BulkEntry() {
 
   const handleNumberChange = (centerId: string, field: string, value: string) => {
     const numValue = parseInt(value, 10) || 0;
-    setCenterData((prev) => ({
-      ...prev, 
-      [centerId]: {
-        ...prev[centerId],
-        [field]: numValue,
-      },
-    }));
+    
+    setCenterData((prev) => {
+      const updatedCenter = { ...prev[centerId], [field]: numValue };
+      
+      // Auto-calculate total doses if fixed_doses or outreach_doses changes
+      if (field === 'fixed_doses' || field === 'outreach_doses') {
+        const fixedDoses = field === 'fixed_doses' 
+          ? numValue 
+          : (prev[centerId]?.fixed_doses || 0);
+          
+        const outreachDoses = field === 'outreach_doses' 
+          ? numValue 
+          : (prev[centerId]?.outreach_doses || 0);
+          
+        updatedCenter.total_doses = fixedDoses + outreachDoses;
+      }
+      
+      return {
+        ...prev,
+        [centerId]: updatedCenter,
+      };
+    });
     
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
