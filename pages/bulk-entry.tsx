@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types";
 import { useRouter } from "next/router";
+import { useAuth } from "../context/AuthContext"; // Add this import
 
 // Define structure for center data
 interface CenterReportData {
@@ -27,6 +28,7 @@ interface CenterReportData {
 
 export default function BulkEntry() {
   const router = useRouter();
+  const { user } = useAuth(); // Add this line to get the authenticated user
   const [states, setStates] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
@@ -266,12 +268,17 @@ export default function BulkEntry() {
     setIsSaving(true);
 
     try {
+      // Check if user exists
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
       // Filter reports to only include modified centers
       const reportsToInsert = Object.entries(centerData)
         .filter(([centerId]) => modifiedCenterIds.has(centerId))
         .map(([centerId, report]) => ({
           center_id: centerId,
-          report_month: reportMonth,
+          report_month: `${reportMonth}-01`, // Make sure it's a valid date
           in_stock: report.in_stock,
           stock_beginning: report.stock_beginning,
           stock_end: report.stock_end,
