@@ -113,13 +113,16 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
         if (updateError) throw updateError;
       } else {
-        // Insert new report
-        const { error: insertError } = await supabase
-          .from("monthly_reports")
-          .insert([reportData]);
+  // Insert new report using upsert with conflict handling
+  const { error: insertError } = await supabase
+    .from("monthly_reports")
+    .upsert([reportData], {
+      onConflict: 'center_id,report_month',
+      ignoreDuplicates: false // set to true if you want to ignore (not update) duplicates
+    });
 
-        if (insertError) throw insertError;
-      }
+  if (insertError) throw insertError;
+}
 
       setSuccess(true);
       onSave();
