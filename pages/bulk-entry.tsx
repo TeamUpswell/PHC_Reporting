@@ -324,8 +324,17 @@ export default function BulkEntry() {
       
     } catch (error) {
       console.error("Error saving data:", error);
+      
+      // Type-safe error handling
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = String(error);
+      }
+      
       setMessage({
-        text: error.message,
+        text: errorMessage,
         type: "error"
       });
     } finally {
