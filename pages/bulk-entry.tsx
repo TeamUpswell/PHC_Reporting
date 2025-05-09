@@ -295,10 +295,9 @@ export default function BulkEntry() {
         }));
 
       if (reportsToInsert.length === 0) {
-        toast({
-          title: "No changes detected",
-          description: "No changes were made to any centers.",
-          status: "info",
+        setMessage({
+          text: "No changes were made to any centers.",
+          type: "error"
         });
         setIsSaving(false);
         return;
@@ -314,21 +313,20 @@ export default function BulkEntry() {
 
       if (error) throw error;
 
-      toast({
-        title: "Success!",
-        description: `Updated data for ${reportsToInsert.length} centers`,
-        status: "success",
+      setMessage({
+        text: `Updated data for ${reportsToInsert.length} centers`,
+        type: "success"
       });
       
       // Reset the modified centers tracking after successful save
       setModifiedCenterIds(new Set());
+      setHasUnsavedChanges(false);
       
     } catch (error) {
       console.error("Error saving data:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        status: "error",
+      setMessage({
+        text: error.message,
+        type: "error"
       });
     } finally {
       setIsSaving(false);
