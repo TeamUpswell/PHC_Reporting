@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { supabase } from "../lib/supabase";
 import MonthSelector from "./MonthSelector";
 import { HealthcareCenter, MonthlyReport } from "../types";
+import { useAuth } from "../context/AuthContext"; // Add this import
 
 interface MonthlyReportFormProps {
   centerId: string;
@@ -19,6 +20,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   onCancel,
   initialReport,
 }) => {
+  const { user } = useAuth(); // Add this line to get the authenticated user
   const [formData, setFormData] = useState<Partial<MonthlyReport>>({
     center_id: centerId,
     report_month: format(new Date(), "yyyy-MM-dd"),
@@ -46,11 +48,17 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   useEffect(() => {
     if (initialReport) {
       setFormData(initialReport);
+      
+      // Extract month from report_month for the month selector
+      if (initialReport.report_month) {
+        const monthStr = initialReport.report_month.substring(0, 7);
+        setSelectedMonth(monthStr);
+      }
     } else {
       // Reset form with default values but keep the center_id
       setFormData({
         center_id: centerId,
-        report_month: format(new Date(), "yyyy-MM-dd"),
+        report_month: `${selectedMonth}-01`,
         in_stock: false,
         stock_beginning: 0,
         stock_end: 0,
@@ -64,7 +72,38 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         dhis_check: false,
       });
     }
+    
+    // Fetch last report month for this center
+    fetchLastReportMonth();
   }, [centerId, initialReport]);
+
+  // Fetch the last report month for this center
+  const fetchLastReportMonth = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("monthly_reports")
+        .select("report_month")
+        .eq("center_id", centerId)
+        .order("report_month", { ascending: false })
+        .limit(1);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setLastReportMonth(data[0].report_month.substring(0, 7));
+      }
+    } catch (error) {
+      console.error("Error fetching last report month:", error);
+    }
+  };
+
+  // Update form data when month selector changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      report_month: `${selectedMonth}-01` // Set to first day of month
+    }));
+  }, [selectedMonth]);
 
   // Calculate total doses when fixed or outreach doses change
   useEffect(() => {
@@ -82,14 +121,21 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
     if (initialReport) {
       setHasChanges(JSON.stringify(formData) !== JSON.stringify(initialReport));
     } else {
-      // Check if any non-default values exist
-      setHasChanges(Object.values(formData).some(val => val !== 0 && val !== false && val !== ""));
+      // Check if any non-default values exist (excluding center_id and report_month)
+      const hasNonDefaultValues = Object.entries(formData).some(([key, val]) => {
+        if (key === 'center_id' || key === 'report_month') return false;
+        return val !== 0 && val !== false && val !== "";
+      });
+      setHasChanges(hasNonDefaultValues);
     }
   }, [formData, initialReport]);
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: checked }));
+  // New handler for boolean fields using select dropdowns
+  const handleBooleanChange = (field: string, value: string) => {
+    setFormData((prev) => ({ 
+      ...prev, 
+      [field]: value === "true" 
+    }));
   };
 
   const handleInputChange = (
@@ -129,7 +175,17 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
       const reportData = {
         ...formData,
         total_doses: (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
+        updated_at: new Date().toISOString()
       };
+
+      // If it's a new report, also add created_at and created_by
+      if (!initialReport?.id) {
+        reportData.created_at = new Date().toISOString();
+        // Add created_by if you have the user context
+        if (user?.id) {
+          reportData.created_by = user.id;
+        }
+      }
 
       if (initialReport?.id) {
         // Update existing report
@@ -185,10 +241,21 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </div>
       )}
 
+      {/* Month selector */}
+      <div className="mb-6">
+        <label className="block text-gray-700 font-medium mb-2">Report Month</label>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2"
+        />
+      </div>
+      
       {lastReportMonth && (
         <div className="mb-4">
           <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
-            lastReportMonth === selectedMonth.substring(0, 7)
+            lastReportMonth === selectedMonth
               ? "bg-green-100 text-green-800 border border-green-300" 
               : "bg-gray-100 text-gray-600 border border-gray-300"
           }`}>
@@ -204,16 +271,17 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </h3>
 
         <div className="mb-4">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="in_stock"
-              checked={formData.in_stock}
-              onChange={handleCheckboxChange}
-              className="form-checkbox h-5 w-5 text-blue-600"
-            />
-            <span>HPV vaccine was in stock during this month</span>
+          <label className="block text-gray-700 font-medium mb-2">
+            HPV vaccine in stock during this month
           </label>
+          <select
+            value={formData.in_stock ? "true" : "false"}
+            onChange={(e) => handleBooleanChange("in_stock", e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+          >
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,16 +315,17 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="shortage"
-              checked={formData.shortage}
-              onChange={handleCheckboxChange}
-              className="form-checkbox h-5 w-5 text-blue-600"
-            />
-            <span>Experienced shortage during this month</span>
+          <label className="block text-gray-700 font-medium mb-2">
+            Experienced shortage during this month
           </label>
+          <select
+            value={formData.shortage ? "true" : "false"}
+            onChange={(e) => handleBooleanChange("shortage", e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+          >
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
         </div>
 
         {formData.shortage && (
@@ -298,27 +367,31 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
           </div>
 
           <div className="mb-4">
-            <label className="flex items-center space-x-2 cursor-pointer mb-2">
-              <input
-                type="checkbox"
-                name="outreach"
-                checked={formData.outreach}
-                onChange={handleCheckboxChange}
-                className="form-checkbox h-5 w-5 text-blue-600"
-              />
-              <span>Conducted outreach this month</span>
+            <label className="block text-gray-700 font-medium mb-2">
+              Conducted outreach this month
             </label>
+            <select
+              value={formData.outreach ? "true" : "false"}
+              onChange={(e) => handleBooleanChange("outreach", e.target.value)}
+              className="w-full border rounded-lg px-3 py-2"
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
 
-            <div className="form-group">
-              <label className="block text-sm font-medium text-gray-700">Outreach Doses:</label>
+            <div className="mt-4">
+              <label className="block text-gray-700 font-medium mb-2">
+                Outreach Doses Given
+              </label>
               <input
                 type="number"
                 value={formData.outreach_doses || 0}
                 onChange={(e) => handleNumberChange("outreach_doses", parseInt(e.target.value) || 0)}
-                className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 ${
+                className={`w-full border rounded-lg px-3 py-2 ${
                   !formData.outreach ? "bg-gray-100" : ""
                 }`}
                 disabled={!formData.outreach}
+                min="0"
               />
             </div>
           </div>
@@ -361,16 +434,17 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="dhis_check"
-              checked={formData.dhis_check}
-              onChange={handleCheckboxChange}
-              className="form-checkbox h-5 w-5 text-blue-600"
-            />
-            <span>Data has been entered in DHIS2</span>
+          <label className="block text-gray-700 font-medium mb-2">
+            Data has been entered in DHIS2
           </label>
+          <select
+            value={formData.dhis_check ? "true" : "false"}
+            onChange={(e) => handleBooleanChange("dhis_check", e.target.value)}
+            className="w-full border rounded-lg px-3 py-2"
+          >
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
         </div>
       </div>
 
