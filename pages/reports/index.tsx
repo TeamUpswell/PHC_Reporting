@@ -34,11 +34,6 @@ export default function Reports() {
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Add these state variables to store the statistics
-  const [currentMonthDoses, setCurrentMonthDoses] = useState(0);
-  const [previousMonthDoses, setPreviousMonthDoses] = useState(0);
-  const [growthPercentage, setGrowthPercentage] = useState(0);
-
   // Add this state for tracking export operations
   const [exporting, setExporting] = useState({
     centers: false,
@@ -126,48 +121,6 @@ export default function Reports() {
 
     fetchReports();
   }, []);
-
-  // Add this useEffect to calculate statistics when reports data changes
-  useEffect(() => {
-    if (!reports.length) return;
-
-    // Get the current month and previous month
-    const now = new Date();
-    const currentMonthStr = format(now, "yyyy-MM-01");
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const previousMonthStr = format(previousMonth, "yyyy-MM-01");
-
-    // Calculate current month doses
-    const currMonthDoses = reports
-      .filter((report) => report.report_month === currentMonthStr)
-      .reduce((sum, report) => sum + Number(report.total_doses || 0), 0);
-    setCurrentMonthDoses(currMonthDoses);
-
-    // Calculate previous month doses
-    const prevMonthDoses = reports
-      .filter((report) => report.report_month === previousMonthStr)
-      .reduce((sum, report) => sum + Number(report.total_doses || 0), 0);
-    setPreviousMonthDoses(prevMonthDoses);
-
-    // Calculate growth percentage
-    if (prevMonthDoses > 0) {
-      const growth = ((currMonthDoses - prevMonthDoses) / prevMonthDoses) * 100;
-      setGrowthPercentage(Number(growth.toFixed(2)));
-    } else if (currMonthDoses > 0) {
-      setGrowthPercentage(100); // If previous month was 0, growth is 100%
-    } else {
-      setGrowthPercentage(0);
-    }
-
-    // Debug output
-    console.log("Statistics calculation:", {
-      currentMonth: currentMonthStr,
-      currentDoses: currMonthDoses,
-      previousMonth: previousMonthStr,
-      previousDoses: prevMonthDoses,
-      growth: `${growthPercentage}%`,
-    });
-  }, [reports]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -401,86 +354,6 @@ export default function Reports() {
                 </>
               )}
             </button>
-          </div>
-        </div>
-
-        {/* Vaccination Statistics */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-blue-800 mb-4">
-            Vaccination Statistics
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Current Month Doses Card */}
-            <div className="bg-white p-6 rounded-lg shadow-md relative">
-              <h3 className="text-lg font-medium text-gray-700">
-                Current Month Doses
-              </h3>
-              <p className="text-4xl font-bold mt-2">{currentMonthDoses}</p>
-              <div className="absolute top-4 right-4 bg-blue-100 p-2 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-blue-800"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Previous Month Doses Card */}
-            <div className="bg-white p-6 rounded-lg shadow-md relative">
-              <h3 className="text-lg font-medium text-gray-700">
-                Previous Month Doses
-              </h3>
-              <p className="text-4xl font-bold mt-2">{previousMonthDoses}</p>
-              <div className="absolute top-4 right-4 bg-blue-100 p-2 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-blue-800"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* Growth Percentage Card */}
-            <div className="bg-white p-6 rounded-lg shadow-md relative">
-              <h3 className="text-lg font-medium text-gray-700">
-                Growth Percentage
-              </h3>
-              <p className="text-4xl font-bold mt-2">{growthPercentage}%</p>
-              <div className="absolute top-4 right-4 bg-green-100 p-2 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-green-800"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                  />
-                </svg>
-              </div>
-            </div>
           </div>
         </div>
 
