@@ -64,6 +64,12 @@ export default function BulkEntry() {
   // Track modified center IDs
   const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(new Set());
 
+  // Track centers with existing data
+  const [centersWithExistingData, setCentersWithExistingData] = useState<Set<string>>(new Set());
+
+  // Hide reported centers state
+  const [hideReportedCenters, setHideReportedCenters] = useState(false);
+
   useEffect(() => {
     fetchStates();
   }, []);
@@ -166,10 +172,12 @@ export default function BulkEntry() {
 
       console.log("Reports data fetched:", reportsData);
 
-      // Merge existing report data with initial data
+      // Track centers that already have data for this month
+      const centersWithData = new Set<string>();
       if (reportsData && reportsData.length > 0) {
         reportsData.forEach((report) => {
           if (initialData[report.center_id]) {
+            centersWithData.add(report.center_id);
             initialData[report.center_id] = {
               in_stock: report.in_stock,
               stock_beginning: report.stock_beginning,
@@ -186,6 +194,7 @@ export default function BulkEntry() {
           }
         });
       }
+      setCentersWithExistingData(centersWithData);
 
       setCenterData(initialData);
       setHasUnsavedChanges(false); // Reset since we just loaded data
@@ -444,76 +453,40 @@ export default function BulkEntry() {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {centers.map((center) => (
-            <tr
-              key={center.id}
-              className={`${center.is_treatment_area ? "bg-green-50" : ""} ${modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}`}
-            >
-              <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
-                <div className="text-sm font-medium text-gray-900">
-                  {center.name}
-                </div>
-                {center.is_treatment_area && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Treatment Area
-                  </span>
-                )}
-              </td>
-              {/* Stock fields */}
-              <td className="px-6 py-4 whitespace-nowrap">
-                <select
-                  value={centerData[center.id]?.in_stock ? "true" : "false"}
-                  onChange={(e) =>
-                    handleCheckboxChange(
-                      center.id,
-                      "in_stock",
-                      e.target.value === "true"
-                    )
-                  }
-                  className="border border-gray-300 rounded-md p-1 text-sm"
-                >
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="number"
-                  min="0"
-                  value={centerData[center.id]?.stock_beginning || 0}
-                  onChange={(e) =>
-                    handleNumberChange(
-                      center.id,
-                      "stock_beginning",
-                      e.target.value
-                    )
-                  }
-                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="number"
-                  min="0"
-                  value={centerData[center.id]?.stock_end || 0}
-                  onChange={(e) =>
-                    handleNumberChange(
-                      center.id,
-                      "stock_end",
-                      e.target.value
-                    )
-                  }
-                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center space-x-2">
+          {centers
+            .filter(center => !hideReportedCenters || !centersWithExistingData.has(center.id))
+            .map((center) => (
+              <tr
+                key={center.id}
+                className={`
+                  ${center.is_treatment_area ? "bg-green-50" : ""}
+                  ${modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}
+                  ${centersWithExistingData.has(center.id) ? "border-l-4 border-green-500" : ""}
+                `}
+              >
+                <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
+                  <div className="text-sm font-medium text-gray-900 flex items-center">
+                    {center.name}
+                    {centersWithExistingData.has(center.id) && (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Reported
+                      </span>
+                    )}
+                  </div>
+                  {center.is_treatment_area && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Treatment Area
+                    </span>
+                  )}
+                </td>
+                {/* Stock fields */}
+                <td className="px-6 py-4 whitespace-nowrap">
                   <select
-                    value={centerData[center.id]?.shortage ? "true" : "false"}
+                    value={centerData[center.id]?.in_stock ? "true" : "false"}
                     onChange={(e) =>
                       handleCheckboxChange(
                         center.id,
-                        "shortage",
+                        "in_stock",
                         e.target.value === "true"
                       )
                     }
@@ -522,131 +495,178 @@ export default function BulkEntry() {
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
-                  <button
-                    onClick={() =>
-                      openNotesModal(
-                        { id: center.id, name: center.name },
-                        "shortage"
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="number"
+                    min="0"
+                    value={centerData[center.id]?.stock_beginning || 0}
+                    onChange={(e) =>
+                      handleNumberChange(
+                        center.id,
+                        "stock_beginning",
+                        e.target.value
                       )
                     }
-                    className="ml-2 p-1 text-blue-600 hover:text-blue-800"
-                    disabled={!centerData[center.id]?.shortage}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="number"
+                    min="0"
+                    value={centerData[center.id]?.stock_end || 0}
+                    onChange={(e) =>
+                      handleNumberChange(
+                        center.id,
+                        "stock_end",
+                        e.target.value
+                      )
+                    }
+                    className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={centerData[center.id]?.shortage ? "true" : "false"}
+                      onChange={(e) =>
+                        handleCheckboxChange(
+                          center.id,
+                          "shortage",
+                          e.target.value === "true"
+                        )
+                      }
+                      className="border border-gray-300 rounded-md p-1 text-sm"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-              {/* Doses fields */}
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="number"
-                  min="0"
-                  value={centerData[center.id]?.fixed_doses || 0}
-                  onChange={(e) =>
-                    handleNumberChange(
-                      center.id,
-                      "fixed_doses",
-                      e.target.value
-                    )
-                  }
-                  className="w-24 border border-gray-300 rounded-md p-1 text-sm"
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <select
-                  value={centerData[center.id]?.outreach ? "true" : "false"}
-                  onChange={(e) =>
-                    handleCheckboxChange(
-                      center.id,
-                      "outreach",
-                      e.target.value === "true"
-                    )
-                  }
-                  className="border border-gray-300 rounded-md p-1 text-sm"
-                >
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="number"
-                  min="0"
-                  value={centerData[center.id]?.outreach_doses || 0}
-                  onChange={(e) =>
-                    handleNumberChange(
-                      center.id,
-                      "outreach_doses",
-                      e.target.value
-                    )
-                  }
-                  className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
-                    !centerData[center.id]?.outreach ? "bg-gray-100" : ""
-                  }`}
-                  disabled={!centerData[center.id]?.outreach}
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="number"
-                  value={centerData[center.id]?.total_doses || 0}
-                  className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
-                  disabled
-                />
-              </td>
-              {/* Additional fields */}
-              <td className="px-6 py-4 whitespace-nowrap">
-                <select
-                  value={centerData[center.id]?.dhis_check ? "true" : "false"}
-                  onChange={(e) =>
-                    handleCheckboxChange(
-                      center.id,
-                      "dhis_check",
-                      e.target.value === "true"
-                    )
-                  }
-                  className="border border-gray-300 rounded-md p-1 text-sm"
-                >
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() =>
-                      openNotesModal(
-                        { id: center.id, name: center.name },
-                        "misinformation"
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                    <button
+                      onClick={() =>
+                        openNotesModal(
+                          { id: center.id, name: center.name },
+                          "shortage"
+                        )
+                      }
+                      className="ml-2 p-1 text-blue-600 hover:text-blue-800"
+                      disabled={!centerData[center.id]?.shortage}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                {/* Doses fields */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="number"
+                    min="0"
+                    value={centerData[center.id]?.fixed_doses || 0}
+                    onChange={(e) =>
+                      handleNumberChange(
+                        center.id,
+                        "fixed_doses",
+                        e.target.value
                       )
                     }
-                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
+                    className="w-24 border border-gray-300 rounded-md p-1 text-sm"
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <select
+                    value={centerData[center.id]?.outreach ? "true" : "false"}
+                    onChange={(e) =>
+                      handleCheckboxChange(
+                        center.id,
+                        "outreach",
+                        e.target.value === "true"
+                      )
+                    }
+                    className="border border-gray-300 rounded-md p-1 text-sm"
                   >
-                    Notes
-                  </button>
-                  {centerData[center.id]?.misinformation && (
-                    <span
-                      className="inline-block h-2 w-2 rounded-full bg-blue-500"
-                      title="Has notes"
-                    ></span>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="number"
+                    min="0"
+                    value={centerData[center.id]?.outreach_doses || 0}
+                    onChange={(e) =>
+                      handleNumberChange(
+                        center.id,
+                        "outreach_doses",
+                        e.target.value
+                      )
+                    }
+                    className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
+                      !centerData[center.id]?.outreach ? "bg-gray-100" : ""
+                    }`}
+                    disabled={!centerData[center.id]?.outreach}
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="number"
+                    value={centerData[center.id]?.total_doses || 0}
+                    className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
+                    disabled
+                  />
+                </td>
+                {/* Additional fields */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <select
+                    value={centerData[center.id]?.dhis_check ? "true" : "false"}
+                    onChange={(e) =>
+                      handleCheckboxChange(
+                        center.id,
+                        "dhis_check",
+                        e.target.value === "true"
+                      )
+                    }
+                    className="border border-gray-300 rounded-md p-1 text-sm"
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() =>
+                        openNotesModal(
+                          { id: center.id, name: center.name },
+                          "misinformation"
+                        )
+                      }
+                      className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100"
+                    >
+                      Notes
+                    </button>
+                    {centerData[center.id]?.misinformation && (
+                      <span
+                        className="inline-block h-2 w-2 rounded-full bg-blue-500"
+                        title="Has notes"
+                      ></span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </table>
     );
@@ -747,13 +767,27 @@ export default function BulkEntry() {
         ) : centers.length > 0 ? (
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
             {/* Section header and instructions */}
-            <div className="border-b border-gray-200 bg-gray-50 p-4">
-              <h2 className="text-lg font-medium text-gray-800">
-                Monthly HPV Vaccination Data
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Enter data for all centers in {selectedState} for {reportMonth}
-              </p>
+            <div className="border-b border-gray-200 bg-gray-50 p-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-medium text-gray-800">
+                  Monthly HPV Vaccination Data
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Enter data for all centers in {selectedState} for {reportMonth}
+                </p>
+              </div>
+              <div className="flex items-center">
+                <input
+                  id="hide-reported"
+                  type="checkbox"
+                  checked={hideReportedCenters}
+                  onChange={(e) => setHideReportedCenters(e.target.checked)}
+                  className="h-4 w-4 text-blue-600"
+                />
+                <label htmlFor="hide-reported" className="ml-2 text-sm text-gray-700">
+                  Hide reported centers
+                </label>
+              </div>
             </div>
 
             {/* Table area with horizontal scrolling */}
