@@ -47,6 +47,9 @@ export default function BulkEntry() {
     Record<string, CenterReportData>
   >({});
 
+  // Add this near your other state declarations
+  const [centerLastReportMonths, setCenterLastReportMonths] = useState<Record<string, string>>({});
+
   // Notes modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [activeCenter, setActiveCenter] = useState<{
@@ -195,6 +198,42 @@ export default function BulkEntry() {
         });
       }
       setCentersWithExistingData(centersWithData);
+
+      // Fetch the latest reports for each center
+      const { data: latestReportsData, error: latestReportsError } = await supabase
+        .from("monthly_reports")
+        .select("center_id, report_month, created_at")
+        .in("center_id", centersData.map(center => center.id))
+        .order("report_month", { ascending: false });
+
+      if (latestReportsError) throw latestReportsError;
+
+      // Process to get the latest month for each center
+      const lastReportMonths: Record<string, string> = {};
+      if (latestReportsData && latestReportsData.length > 0) {
+        // Group reports by center_id
+        const centerReports: Record<string, any[]> = {};
+        latestReportsData.forEach(report => {
+          if (!centerReports[report.center_id]) {
+            centerReports[report.center_id] = [];
+          }
+          centerReports[report.center_id].push(report);
+        });
+
+        // Get most recent report for each center
+        Object.entries(centerReports).forEach(([centerId, reports]) => {
+          // Sort by date (newest first)
+          reports.sort((a, b) =>
+            new Date(b.report_month).getTime() - new Date(a.report_month).getTime()
+          );
+          // Get the month of the most recent report
+          if (reports.length > 0) {
+            lastReportMonths[centerId] = reports[0].report_month.substring(0, 7);
+          }
+        });
+      }
+
+      setCenterLastReportMonths(lastReportMonths);
 
       setCenterData(initialData);
       setHasUnsavedChanges(false); // Reset since we just loaded data
@@ -465,19 +504,33 @@ export default function BulkEntry() {
                 `}
               >
                 <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
-                  <div className="text-sm font-medium text-gray-900 flex items-center">
+                  <div className="text-sm font-medium text-gray-900">
                     {center.name}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {center.is_treatment_area && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Treatment Area
+                      </span>
+                    )}
                     {centersWithExistingData.has(center.id) && (
-                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Reported
                       </span>
                     )}
+                    {centerLastReportMonths[center.id] && (
+                      <span 
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          centerLastReportMonths[center.id] === reportMonth 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                        title="Last reported month"
+                      >
+                        Last: {centerLastReportMonths[center.id]}
+                      </span>
+                    )}
                   </div>
-                  {center.is_treatment_area && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Treatment Area
-                    </span>
-                  )}
                 </td>
                 {/* Stock fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
