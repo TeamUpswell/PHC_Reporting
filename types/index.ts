@@ -31,4 +31,6 @@ export interface MonthlyReport {
   misinformation: string | null;
   dhis_check: boolean;
   created_at: string;
+  updated_at: string; // Add this line
+  created_by: string;
 }
