@@ -337,4 +337,26 @@ export default function BulkEntry() {
       });
       
       // Reset the modified centers tracking after successful save
-     
+      setModifiedCenterIds(new Set());
+      setHasUnsavedChanges(false);
+      
+    } catch (error) {
+      console.error("Error saving data:", error);
+      
+      // Type-safe error handling
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = String(error);
+      }
+      
+      setMessage({
+        text: errorMessage,
+        type: "error"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+}
