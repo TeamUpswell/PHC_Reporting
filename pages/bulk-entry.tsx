@@ -62,7 +62,9 @@ export default function BulkEntry() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track modified center IDs
-  const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(new Set());
+  const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(
+    new Set()
+  );
 
   useEffect(() => {
     fetchStates();
@@ -197,7 +199,11 @@ export default function BulkEntry() {
   };
 
   // Generic handlers for different field types
-  const handleCheckboxChange = (centerId: string, field: string, checked: boolean) => {
+  const handleCheckboxChange = (
+    centerId: string,
+    field: string,
+    checked: boolean
+  ) => {
     setCenterData((prev) => ({
       ...prev,
       [centerId]: {
@@ -205,36 +211,40 @@ export default function BulkEntry() {
         [field]: checked,
       },
     }));
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
   };
 
-  const handleNumberChange = (centerId: string, field: string, value: string) => {
+  const handleNumberChange = (
+    centerId: string,
+    field: string,
+    value: string
+  ) => {
     const numValue = parseInt(value, 10) || 0;
-    
+
     setCenterData((prev) => {
       const updatedCenter = { ...prev[centerId], [field]: numValue };
-      
+
       // Auto-calculate total doses if fixed_doses or outreach_doses changes
-      if (field === 'fixed_doses' || field === 'outreach_doses') {
-        const fixedDoses = field === 'fixed_doses' 
-          ? numValue 
-          : (prev[centerId]?.fixed_doses || 0);
-          
-        const outreachDoses = field === 'outreach_doses' 
-          ? numValue 
-          : (prev[centerId]?.outreach_doses || 0);
-          
+      if (field === "fixed_doses" || field === "outreach_doses") {
+        const fixedDoses =
+          field === "fixed_doses" ? numValue : prev[centerId]?.fixed_doses || 0;
+
+        const outreachDoses =
+          field === "outreach_doses"
+            ? numValue
+            : prev[centerId]?.outreach_doses || 0;
+
         updatedCenter.total_doses = fixedDoses + outreachDoses;
       }
-      
+
       return {
         ...prev,
         [centerId]: updatedCenter,
       };
     });
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
   };
@@ -247,7 +257,7 @@ export default function BulkEntry() {
         [field]: value,
       },
     }));
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
   };
@@ -312,7 +322,7 @@ export default function BulkEntry() {
       if (reportsToInsert.length === 0) {
         setMessage({
           text: "No changes were made to any centers.",
-          type: "error"
+          type: "error",
         });
         setIsSaving(false);
         return;
@@ -322,8 +332,8 @@ export default function BulkEntry() {
       const { error } = await supabase
         .from("monthly_reports")
         .upsert(reportsToInsert, {
-          onConflict: 'center_id,report_month',
-          ignoreDuplicates: false
+          onConflict: "center_id,report_month",
+          ignoreDuplicates: false,
         });
 
       if (error) throw error;
@@ -333,16 +343,15 @@ export default function BulkEntry() {
 
       setMessage({
         text: `Updated data for ${reportsToInsert.length} centers`,
-        type: "success"
+        type: "success",
       });
-      
+
       // Reset the modified centers tracking after successful save
       setModifiedCenterIds(new Set());
       setHasUnsavedChanges(false);
-      
     } catch (error) {
       console.error("Error saving data:", error);
-      
+
       // Type-safe error handling
       let errorMessage: string;
       if (error instanceof Error) {
@@ -350,10 +359,10 @@ export default function BulkEntry() {
       } else {
         errorMessage = String(error);
       }
-      
+
       setMessage({
         text: errorMessage,
-        type: "error"
+        type: "error",
       });
     } finally {
       setIsSaving(false);
@@ -367,10 +376,12 @@ export default function BulkEntry() {
       </Head>
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Bulk Data Entry</h1>
-        
+
         <div className="flex flex-col md:flex-row md:items-center mb-6 space-y-4 md:space-y-0 md:space-x-4">
           <div className="w-full md:w-1/3">
-            <label className="block text-sm font-medium mb-1">Select State</label>
+            <label className="block text-sm font-medium mb-1">
+              Select State
+            </label>
             <select
               className="w-full p-2 border rounded"
               value={selectedState}
@@ -385,9 +396,11 @@ export default function BulkEntry() {
               ))}
             </select>
           </div>
-          
+
           <div className="w-full md:w-1/3">
-            <label className="block text-sm font-medium mb-1">Select Month</label>
+            <label className="block text-sm font-medium mb-1">
+              Select Month
+            </label>
             <input
               type="month"
               className="w-full p-2 border rounded"
@@ -396,28 +409,35 @@ export default function BulkEntry() {
               disabled={loading}
             />
           </div>
-          
+
           <div className="w-full md:w-1/3 flex items-end">
             <button
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
               onClick={saveAllData}
-              disabled={loading || isSaving || !selectedState || modifiedCenterIds.size === 0}
+              disabled={
+                loading ||
+                isSaving ||
+                !selectedState ||
+                modifiedCenterIds.size === 0
+              }
             >
               {isSaving ? "Saving..." : "Save All Changes"}
             </button>
           </div>
         </div>
-        
+
         {message && (
           <div
             className={`p-4 mb-4 rounded ${
-              message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              message.type === "success"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
             }`}
           >
             {message.text}
           </div>
         )}
-        
+
         {loading ? (
           <div className="text-center py-8">Loading...</div>
         ) : centers.length === 0 ? (
@@ -433,22 +453,30 @@ export default function BulkEntry() {
                 <tr className="bg-gray-100">
                   <th className="py-2 px-3 border text-left">Center</th>
                   <th className="py-2 px-3 border text-center">In Stock</th>
-                  <th className="py-2 px-3 border text-center">Stock Beginning</th>
+                  <th className="py-2 px-3 border text-center">
+                    Stock Beginning
+                  </th>
                   <th className="py-2 px-3 border text-center">Stock End</th>
                   <th className="py-2 px-3 border text-center">Shortage</th>
                   <th className="py-2 px-3 border text-center">Outreach</th>
                   <th className="py-2 px-3 border text-center">Fixed Doses</th>
-                  <th className="py-2 px-3 border text-center">Outreach Doses</th>
+                  <th className="py-2 px-3 border text-center">
+                    Outreach Doses
+                  </th>
                   <th className="py-2 px-3 border text-center">Total Doses</th>
-                  <th className="py-2 px-3 border text-center">Misinformation</th>
+                  <th className="py-2 px-3 border text-center">
+                    Misinformation
+                  </th>
                   <th className="py-2 px-3 border text-center">DHIS Check</th>
                 </tr>
               </thead>
               <tbody>
                 {centers.map((center) => (
-                  <tr 
+                  <tr
                     key={center.id}
-                    className={modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}
+                    className={
+                      modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""
+                    }
                   >
                     <td className="py-2 px-3 border">
                       <div className="font-medium">{center.name}</div>
@@ -459,7 +487,11 @@ export default function BulkEntry() {
                         type="checkbox"
                         checked={centerData[center.id]?.in_stock || false}
                         onChange={(e) =>
-                          handleCheckboxChange(center.id, "in_stock", e.target.checked)
+                          handleCheckboxChange(
+                            center.id,
+                            "in_stock",
+                            e.target.checked
+                          )
                         }
                       />
                     </td>
@@ -469,7 +501,11 @@ export default function BulkEntry() {
                         className="w-16 p-1 border rounded text-center"
                         value={centerData[center.id]?.stock_beginning || 0}
                         onChange={(e) =>
-                          handleNumberChange(center.id, "stock_beginning", e.target.value)
+                          handleNumberChange(
+                            center.id,
+                            "stock_beginning",
+                            e.target.value
+                          )
                         }
                       />
                     </td>
@@ -479,7 +515,11 @@ export default function BulkEntry() {
                         className="w-16 p-1 border rounded text-center"
                         value={centerData[center.id]?.stock_end || 0}
                         onChange={(e) =>
-                          handleNumberChange(center.id, "stock_end", e.target.value)
+                          handleNumberChange(
+                            center.id,
+                            "stock_end",
+                            e.target.value
+                          )
                         }
                       />
                     </td>
@@ -489,7 +529,11 @@ export default function BulkEntry() {
                           type="checkbox"
                           checked={centerData[center.id]?.shortage || false}
                           onChange={(e) =>
-                            handleCheckboxChange(center.id, "shortage", e.target.checked)
+                            handleCheckboxChange(
+                              center.id,
+                              "shortage",
+                              e.target.checked
+                            )
                           }
                         />
                         {centerData[center.id]?.shortage && (
@@ -507,7 +551,11 @@ export default function BulkEntry() {
                         type="checkbox"
                         checked={centerData[center.id]?.outreach || false}
                         onChange={(e) =>
-                          handleCheckboxChange(center.id, "outreach", e.target.checked)
+                          handleCheckboxChange(
+                            center.id,
+                            "outreach",
+                            e.target.checked
+                          )
                         }
                       />
                     </td>
@@ -517,7 +565,11 @@ export default function BulkEntry() {
                         className="w-16 p-1 border rounded text-center"
                         value={centerData[center.id]?.fixed_doses || 0}
                         onChange={(e) =>
-                          handleNumberChange(center.id, "fixed_doses", e.target.value)
+                          handleNumberChange(
+                            center.id,
+                            "fixed_doses",
+                            e.target.value
+                          )
                         }
                       />
                     </td>
@@ -527,7 +579,11 @@ export default function BulkEntry() {
                         className="w-16 p-1 border rounded text-center"
                         value={centerData[center.id]?.outreach_doses || 0}
                         onChange={(e) =>
-                          handleNumberChange(center.id, "outreach_doses", e.target.value)
+                          handleNumberChange(
+                            center.id,
+                            "outreach_doses",
+                            e.target.value
+                          )
                         }
                       />
                     </td>
@@ -549,7 +605,11 @@ export default function BulkEntry() {
                         type="checkbox"
                         checked={centerData[center.id]?.dhis_check || false}
                         onChange={(e) =>
-                          handleCheckboxChange(center.id, "dhis_check", e.target.checked)
+                          handleCheckboxChange(
+                            center.id,
+                            "dhis_check",
+                            e.target.checked
+                          )
                         }
                       />
                     </td>
@@ -560,7 +620,7 @@ export default function BulkEntry() {
           </div>
         )}
       </div>
-      
+
       {/* Notes Modal */}
       {modalOpen && activeCenter && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -573,7 +633,7 @@ export default function BulkEntry() {
                 {activeCenter.name}
               </span>
             </h2>
-            
+
             <textarea
               className="w-full p-2 border rounded h-32"
               value={notesText}
@@ -584,7 +644,7 @@ export default function BulkEntry() {
                   : "Enter shortage response details..."
               }
             ></textarea>
-            
+
             <div className="flex justify-end mt-4 space-x-2">
               <button
                 className="px-4 py-2 border rounded hover:bg-gray-100"
