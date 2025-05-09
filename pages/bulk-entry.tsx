@@ -31,7 +31,7 @@ export default function BulkEntry() {
   const [selectedState, setSelectedState] = useState<string>("");
   const [centers, setCenters] = useState<HealthcareCenter[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
@@ -58,6 +58,9 @@ export default function BulkEntry() {
 
   // Unsaved changes state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Track modified center IDs
+  const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchStates();
@@ -192,71 +195,44 @@ export default function BulkEntry() {
   };
 
   // Generic handlers for different field types
-  const handleNumberChange = (
-    centerId: string,
-    field: keyof CenterReportData,
-    value: number
-  ) => {
-    setHasUnsavedChanges(true);
-    setCenterData((prev) => {
-      const centerDataCopy = { ...prev };
-      centerDataCopy[centerId] = {
-        ...centerDataCopy[centerId],
-        [field]: value,
-      };
-
-      // If we're changing fixed or outreach doses, update total_doses
-      if (field === "fixed_doses" || field === "outreach_doses") {
-        const fixedDoses =
-          field === "fixed_doses"
-            ? value
-            : centerDataCopy[centerId].fixed_doses;
-        const outreachDoses =
-          field === "outreach_doses"
-            ? value
-            : centerDataCopy[centerId].outreach_doses;
-        centerDataCopy[centerId].total_doses =
-          fixedDoses + (centerDataCopy[centerId].outreach ? outreachDoses : 0);
-      }
-
-      return centerDataCopy;
-    });
-  };
-
-  const handleBooleanChange = (
-    centerId: string,
-    field: keyof CenterReportData,
-    value: boolean
-  ) => {
-    setCenterData((prev) => {
-      const centerDataCopy = { ...prev };
-      centerDataCopy[centerId] = {
-        ...centerDataCopy[centerId],
-        [field]: value,
-      };
-
-      // If we're toggling outreach, update total_doses
-      if (field === "outreach") {
-        const outreachDoses = value
-          ? centerDataCopy[centerId].outreach_doses
-          : 0;
-        centerDataCopy[centerId].total_doses =
-          centerDataCopy[centerId].fixed_doses + outreachDoses;
-      }
-
-      return centerDataCopy;
-    });
-  };
-
-  const handleTextChange = (
-    centerId: string,
-    field: keyof CenterReportData,
-    value: string
-  ) => {
+  const handleCheckboxChange = (centerId: string, field: string, checked: boolean) => {
     setCenterData((prev) => ({
       ...prev,
-      [centerId]: { ...prev[centerId], [field]: value },
+      [centerId]: {
+        ...prev[centerId],
+        [field]: checked,
+      },
     }));
+    
+    // Track this center as modified
+    setModifiedCenterIds((prev) => new Set(prev).add(centerId));
+  };
+
+  const handleNumberChange = (centerId: string, field: string, value: string) => {
+    const numValue = parseInt(value, 10) || 0;
+    setCenterData((prev) => ({
+      ...prev, 
+      [centerId]: {
+        ...prev[centerId],
+        [field]: numValue,
+      },
+    }));
+    
+    // Track this center as modified
+    setModifiedCenterIds((prev) => new Set(prev).add(centerId));
+  };
+
+  const handleTextChange = (centerId: string, field: string, value: string) => {
+    setCenterData((prev) => ({
+      ...prev,
+      [centerId]: {
+        ...prev[centerId],
+        [field]: value,
+      },
+    }));
+    
+    // Track this center as modified
+    setModifiedCenterIds((prev) => new Set(prev).add(centerId));
   };
 
   const openNotesModal = (
@@ -287,67 +263,68 @@ export default function BulkEntry() {
   };
 
   const saveAllData = async () => {
-    setSaving(true);
-    setMessage(null);
+    setIsSaving(true);
 
     try {
-      // Get the current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Filter reports to only include modified centers
+      const reportsToInsert = Object.entries(centerData)
+        .filter(([centerId]) => modifiedCenterIds.has(centerId))
+        .map(([centerId, report]) => ({
+          center_id: centerId,
+          report_month: reportMonth,
+          in_stock: report.in_stock,
+          stock_beginning: report.stock_beginning,
+          stock_end: report.stock_end,
+          shortage: report.shortage,
+          shortage_response: report.shortage_response || null,
+          outreach: report.outreach,
+          fixed_doses: report.fixed_doses,
+          outreach_doses: report.outreach_doses,
+          total_doses: report.fixed_doses + report.outreach_doses,
+          misinformation: report.misinformation || null,
+          dhis_check: report.dhis_check,
+          created_at: new Date().toISOString(),
+          created_by: user.id,
+        }));
 
-      if (!user) {
-        throw new Error("Authentication required");
+      if (reportsToInsert.length === 0) {
+        toast({
+          title: "No changes detected",
+          description: "No changes were made to any centers.",
+          status: "info",
+        });
+        setIsSaving(false);
+        return;
       }
 
-      // Format date for database
-      const reportDate = new Date(`${reportMonth}-01`).toISOString();
-
-      // Prepare batch insert data
-      const reportsToInsert = Object.entries(centerData).map(
-        ([centerId, data]) => ({
-          center_id: centerId,
-          report_month: reportDate,
-          in_stock: data.in_stock,
-          stock_beginning: data.stock_beginning,
-          stock_end: data.stock_end,
-          shortage: data.shortage,
-          shortage_response: data.shortage_response || null,
-          outreach: data.outreach,
-          fixed_doses: data.fixed_doses,
-          outreach_doses: data.outreach_doses,
-          total_doses: data.total_doses,
-          misinformation: data.misinformation || null,
-          dhis_check: data.dhis_check,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: user.id, // Include the user ID
-        })
-      );
-
-      // Insert data in batches
-      for (let i = 0; i < reportsToInsert.length; i += 20) {
-        const batch = reportsToInsert.slice(i, i + 20);
-        const { error } = await supabase.from("monthly_reports").upsert(batch, {
-          onConflict: "center_id,report_month",
-          ignoreDuplicates: false,
+      // Insert/upsert data only for modified centers
+      const { error } = await supabase
+        .from("monthly_reports")
+        .upsert(reportsToInsert, {
+          onConflict: 'center_id,report_month',
+          ignoreDuplicates: false
         });
 
-        if (error) throw error;
-      }
+      if (error) throw error;
 
-      setMessage({
-        text: `Successfully saved data for ${reportsToInsert.length} centers.`,
-        type: "success",
+      toast({
+        title: "Success!",
+        description: `Updated data for ${reportsToInsert.length} centers`,
+        status: "success",
       });
-    } catch (error: any) {
+      
+      // Reset the modified centers tracking after successful save
+      setModifiedCenterIds(new Set());
+      
+    } catch (error) {
       console.error("Error saving data:", error);
-      setMessage({
-        text: `Error: ${error.message || "Failed to save data"}`,
-        type: "error",
+      toast({
+        title: "Error",
+        description: error.message,
+        status: "error",
       });
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -451,7 +428,7 @@ export default function BulkEntry() {
                 <select
                   value={centerData[center.id]?.in_stock ? "true" : "false"}
                   onChange={(e) =>
-                    handleBooleanChange(
+                    handleCheckboxChange(
                       center.id,
                       "in_stock",
                       e.target.value === "true"
@@ -472,7 +449,7 @@ export default function BulkEntry() {
                     handleNumberChange(
                       center.id,
                       "stock_beginning",
-                      parseInt(e.target.value) || 0
+                      e.target.value
                     )
                   }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
@@ -487,7 +464,7 @@ export default function BulkEntry() {
                     handleNumberChange(
                       center.id,
                       "stock_end",
-                      parseInt(e.target.value) || 0
+                      e.target.value
                     )
                   }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
@@ -498,7 +475,7 @@ export default function BulkEntry() {
                   <select
                     value={centerData[center.id]?.shortage ? "true" : "false"}
                     onChange={(e) =>
-                      handleBooleanChange(
+                      handleCheckboxChange(
                         center.id,
                         "shortage",
                         e.target.value === "true"
@@ -546,7 +523,7 @@ export default function BulkEntry() {
                     handleNumberChange(
                       center.id,
                       "fixed_doses",
-                      parseInt(e.target.value) || 0
+                      e.target.value
                     )
                   }
                   className="w-24 border border-gray-300 rounded-md p-1 text-sm"
@@ -556,7 +533,7 @@ export default function BulkEntry() {
                 <select
                   value={centerData[center.id]?.outreach ? "true" : "false"}
                   onChange={(e) =>
-                    handleBooleanChange(
+                    handleCheckboxChange(
                       center.id,
                       "outreach",
                       e.target.value === "true"
@@ -577,7 +554,7 @@ export default function BulkEntry() {
                     handleNumberChange(
                       center.id,
                       "outreach_doses",
-                      parseInt(e.target.value) || 0
+                      e.target.value
                     )
                   }
                   className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
@@ -599,7 +576,7 @@ export default function BulkEntry() {
                 <select
                   value={centerData[center.id]?.dhis_check ? "true" : "false"}
                   onChange={(e) =>
-                    handleBooleanChange(
+                    handleCheckboxChange(
                       center.id,
                       "dhis_check",
                       e.target.value === "true"
@@ -713,14 +690,14 @@ export default function BulkEntry() {
           {selectedState && (
             <button
               onClick={saveAllData}
-              disabled={saving || centers.length === 0}
+              disabled={isSaving || centers.length === 0}
               className={`font-medium py-2 px-4 rounded disabled:opacity-50 ${
                 hasUnsavedChanges
                   ? "bg-yellow-500 hover:bg-yellow-600 text-white"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
-              {saving
+              {isSaving
                 ? "Saving..."
                 : hasUnsavedChanges
                 ? "Save Changes*"
@@ -761,10 +738,10 @@ export default function BulkEntry() {
           <div className="fixed bottom-8 right-8 z-20">
             <button
               onClick={saveAllData}
-              disabled={saving}
+              disabled={isSaving}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-full shadow-lg disabled:opacity-50 flex items-center"
             >
-              {saving ? (
+              {isSaving ? (
                 <>
                   <svg
                     className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
