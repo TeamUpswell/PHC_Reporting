@@ -359,4 +359,249 @@ export default function BulkEntry() {
       setIsSaving(false);
     }
   };
+
+  return (
+    <Layout>
+      <Head>
+        <title>Bulk Data Entry - PHC Data Collection</title>
+      </Head>
+      <div className="container mx-auto px-4 py-6">
+        <h1 className="text-2xl font-bold mb-6">Bulk Data Entry</h1>
+        
+        <div className="flex flex-col md:flex-row md:items-center mb-6 space-y-4 md:space-y-0 md:space-x-4">
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-medium mb-1">Select State</label>
+            <select
+              className="w-full p-2 border rounded"
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">-- Select State --</option>
+              {states.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-medium mb-1">Select Month</label>
+            <input
+              type="month"
+              className="w-full p-2 border rounded"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          
+          <div className="w-full md:w-1/3 flex items-end">
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
+              onClick={saveAllData}
+              disabled={loading || isSaving || !selectedState || modifiedCenterIds.size === 0}
+            >
+              {isSaving ? "Saving..." : "Save All Changes"}
+            </button>
+          </div>
+        </div>
+        
+        {message && (
+          <div
+            className={`p-4 mb-4 rounded ${
+              message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+        
+        {loading ? (
+          <div className="text-center py-8">Loading...</div>
+        ) : centers.length === 0 ? (
+          <div className="text-center py-8">
+            {selectedState
+              ? "No centers found for this state"
+              : "Please select a state to view centers"}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="py-2 px-3 border text-left">Center</th>
+                  <th className="py-2 px-3 border text-center">In Stock</th>
+                  <th className="py-2 px-3 border text-center">Stock Beginning</th>
+                  <th className="py-2 px-3 border text-center">Stock End</th>
+                  <th className="py-2 px-3 border text-center">Shortage</th>
+                  <th className="py-2 px-3 border text-center">Outreach</th>
+                  <th className="py-2 px-3 border text-center">Fixed Doses</th>
+                  <th className="py-2 px-3 border text-center">Outreach Doses</th>
+                  <th className="py-2 px-3 border text-center">Total Doses</th>
+                  <th className="py-2 px-3 border text-center">Misinformation</th>
+                  <th className="py-2 px-3 border text-center">DHIS Check</th>
+                </tr>
+              </thead>
+              <tbody>
+                {centers.map((center) => (
+                  <tr 
+                    key={center.id}
+                    className={modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}
+                  >
+                    <td className="py-2 px-3 border">
+                      <div className="font-medium">{center.name}</div>
+                      <div className="text-sm text-gray-500">{center.area}</div>
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="checkbox"
+                        checked={centerData[center.id]?.in_stock || false}
+                        onChange={(e) =>
+                          handleCheckboxChange(center.id, "in_stock", e.target.checked)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="number"
+                        className="w-16 p-1 border rounded text-center"
+                        value={centerData[center.id]?.stock_beginning || 0}
+                        onChange={(e) =>
+                          handleNumberChange(center.id, "stock_beginning", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="number"
+                        className="w-16 p-1 border rounded text-center"
+                        value={centerData[center.id]?.stock_end || 0}
+                        onChange={(e) =>
+                          handleNumberChange(center.id, "stock_end", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="checkbox"
+                          checked={centerData[center.id]?.shortage || false}
+                          onChange={(e) =>
+                            handleCheckboxChange(center.id, "shortage", e.target.checked)
+                          }
+                        />
+                        {centerData[center.id]?.shortage && (
+                          <button
+                            className="text-xs text-blue-500 mt-1"
+                            onClick={() => openNotesModal(center, "shortage")}
+                          >
+                            Add details
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="checkbox"
+                        checked={centerData[center.id]?.outreach || false}
+                        onChange={(e) =>
+                          handleCheckboxChange(center.id, "outreach", e.target.checked)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="number"
+                        className="w-16 p-1 border rounded text-center"
+                        value={centerData[center.id]?.fixed_doses || 0}
+                        onChange={(e) =>
+                          handleNumberChange(center.id, "fixed_doses", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="number"
+                        className="w-16 p-1 border rounded text-center"
+                        value={centerData[center.id]?.outreach_doses || 0}
+                        onChange={(e) =>
+                          handleNumberChange(center.id, "outreach_doses", e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <span className="font-bold">
+                        {centerData[center.id]?.total_doses || 0}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <button
+                        className="text-sm text-blue-500"
+                        onClick={() => openNotesModal(center, "misinformation")}
+                      >
+                        {centerData[center.id]?.misinformation ? "Edit" : "Add"}
+                      </button>
+                    </td>
+                    <td className="py-2 px-3 border text-center">
+                      <input
+                        type="checkbox"
+                        checked={centerData[center.id]?.dhis_check || false}
+                        onChange={(e) =>
+                          handleCheckboxChange(center.id, "dhis_check", e.target.checked)
+                        }
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      
+      {/* Notes Modal */}
+      {modalOpen && activeCenter && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">
+              {notesType === "misinformation"
+                ? "Misinformation Notes"
+                : "Shortage Response Details"}
+              <span className="block text-sm font-normal text-gray-500 mt-1">
+                {activeCenter.name}
+              </span>
+            </h2>
+            
+            <textarea
+              className="w-full p-2 border rounded h-32"
+              value={notesText}
+              onChange={(e) => setNotesText(e.target.value)}
+              placeholder={
+                notesType === "misinformation"
+                  ? "Enter any misinformation details..."
+                  : "Enter shortage response details..."
+              }
+            ></textarea>
+            
+            <div className="flex justify-end mt-4 space-x-2">
+              <button
+                className="px-4 py-2 border rounded hover:bg-gray-100"
+                onClick={() => setModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={saveNotes}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
 }
