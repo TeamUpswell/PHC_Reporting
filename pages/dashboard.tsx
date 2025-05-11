@@ -15,7 +15,7 @@ import {
 import dynamic from "next/dynamic";
 import DashboardCard from "../components/DashboardCard";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { HealthcareCenter, MonthlyReport } from "../types";
+import { HealthcareCenter } from "../types";
 import { ToastContainer, toast } from "react-toastify";
 import ProtectedRoute from "../components/ProtectedRoute";
 import "react-toastify/dist/ReactToastify.css";
@@ -45,7 +45,6 @@ interface DashboardStats {
   totalCenters: number;
   totalDoses: number;
   stockoutCenters: number;
-  recentReports: number;
   areaStats: Record<string, number>;
   monthlyData: Array<{
     month: string;
@@ -109,15 +108,6 @@ interface SummaryData {
   controlGrowthPercent: number;
   prevTreatmentVaccinations: number;
   prevControlVaccinations: number;
-  recentReports: number;
-}
-
-interface RecentCenterReport {
-  id: string;
-  reporting_month: string;
-  healthcare_center: HealthcareCenter | null;
-  total_vaccinations: number;
-  created_at: string;
 }
 
 const DashboardSkeleton = () => (
@@ -186,7 +176,6 @@ const Dashboard = () => {
     totalCenters: 0,
     totalDoses: 0,
     stockoutCenters: 0,
-    recentReports: 0,
     areaStats: {},
     monthlyData: [],
     zeroDoses: {
@@ -242,12 +231,7 @@ const Dashboard = () => {
     controlGrowthPercent: 0,
     prevTreatmentVaccinations: 0,
     prevControlVaccinations: 0,
-    recentReports: 0,
   });
-
-  const [recentCenterReports, setRecentCenterReports] = useState<
-    RecentCenterReport[]
-  >([]);
 
   const handleStateChange = useCallback((newState: string) => {
     setSelectedState(newState);
@@ -465,15 +449,6 @@ const Dashboard = () => {
         controlGrowth: controlGrowthPercent.toFixed(1) + "%",
       });
 
-      // Get recent reports count
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const { count: recentReportsCount } = await supabase
-        .from("monthly_reports")
-        .select("id", { count: "exact" })
-        .gte("created_at", thirtyDaysAgo.toISOString());
-
       // Update the state with the correct data
       setSummaryData({
         totalCenters,
@@ -486,7 +461,6 @@ const Dashboard = () => {
         controlGrowthPercent,
         prevTreatmentVaccinations,
         prevControlVaccinations,
-        recentReports: recentReportsCount || 0,
       });
     } catch (error) {
       console.error("Error in fetchSummaryData:", error);
@@ -603,7 +577,7 @@ const Dashboard = () => {
               .reduce((sum, report) => {
                 // Ensure we handle both total_doses directly or calculate from components
                 let dosesValue = 0;
-                if (typeof report.total_doses === 'number') {
+                if (typeof report.total_doses === "number") {
                   dosesValue = report.total_doses;
                 } else {
                   const fixedDoses = report.fixed_doses || 0;
@@ -617,17 +591,22 @@ const Dashboard = () => {
             const fullLabel = format(targetDate, "MMM yyyy");
 
             // Add debug log to verify data is being added
-            console.log(`Adding month data: ${fullLabel}, doses: ${monthDoses}`);
-            
+            console.log(
+              `Adding month data: ${fullLabel}, doses: ${monthDoses}`
+            );
+
             monthlyData.push({
               month: targetMonth,
               fullLabel: fullLabel,
-              doses: monthDoses
+              doses: monthDoses,
             });
           }
 
           // Add debug output for final monthly data
-          console.log("Final monthly data for chart:", JSON.stringify(monthlyData));
+          console.log(
+            "Final monthly data for chart:",
+            JSON.stringify(monthlyData)
+          );
 
           console.log("Monthly data for chart:", monthlyData);
 
@@ -1032,78 +1011,95 @@ const Dashboard = () => {
 
   const generateMonthlyData = () => {
     const monthlyData = [];
-    
+
     // Center the selected month in the chart
     // Show 2 months before and 3 months after the selected month
     for (let i = -2; i <= 3; i++) {
       const targetDate = addMonths(selectedDate, i);
       const targetMonthString = format(targetDate, "yyyy-MM");
-      
+
       // Check if we're trying to show future months beyond now
       const now = new Date();
       const isInFuture = targetDate > now;
-      
+
       // Debug log
-      console.log(`Processing month: ${format(targetDate, "MMM yyyy")}, Future month? ${isInFuture}`);
-      
+      console.log(
+        `Processing month: ${format(
+          targetDate,
+          "MMM yyyy"
+        )}, Future month? ${isInFuture}`
+      );
+
       // Filter reports for this specific month - with more flexible matching
-      const monthReports = !isInFuture && reportsData 
-        ? reportsData.filter((report) => {
-            // Skip if no date info
-            if (!report.report_month && !report.report_date) {
-              return false;
-            }
-            
-            // Try different date formats for matching
-            try {
-              const reportDate = report.report_month 
-                ? parseISO(report.report_month)
-                : parseISO(report.report_date);
-                
-              const reportMonthString = format(reportDate, "yyyy-MM");
-              const matched = reportMonthString === targetMonthString;
-              
-              if (matched) {
-                console.log(`Found match for ${targetMonthString}: Report date: ${report.report_month}`);
+      const monthReports =
+        !isInFuture && reportsData
+          ? reportsData.filter((report) => {
+              // Skip if no date info
+              if (!report.report_month && !report.report_date) {
+                return false;
               }
-              
-              return matched;
-            } catch (err) {
-              console.error("Error parsing report date:", err);
-              return false;
-            }
-          })
-        : [];
-      
+
+              // Try different date formats for matching
+              try {
+                const reportDate = report.report_month
+                  ? parseISO(report.report_month)
+                  : parseISO(report.report_date);
+
+                const reportMonthString = format(reportDate, "yyyy-MM");
+                const matched = reportMonthString === targetMonthString;
+
+                if (matched) {
+                  console.log(
+                    `Found match for ${targetMonthString}: Report date: ${report.report_month}`
+                  );
+                }
+
+                return matched;
+              } catch (err) {
+                console.error("Error parsing report date:", err);
+                return false;
+              }
+            })
+          : [];
+
       // Log how many reports found for this month
-      console.log(`Found ${monthReports?.length || 0} reports for ${format(targetDate, "MMM yyyy")}`);
+      console.log(
+        `Found ${monthReports?.length || 0} reports for ${format(
+          targetDate,
+          "MMM yyyy"
+        )}`
+      );
 
       // Calculate total doses for this month - FIX: Use proper null/array check
-      const totalDoses = monthReports && monthReports.length > 0
-        ? monthReports.reduce((sum, report) => {
-            // Handle different ways doses might be stored
-            let dosesValue = 0;
+      const totalDoses =
+        monthReports && monthReports.length > 0
+          ? monthReports.reduce((sum, report) => {
+              // Handle different ways doses might be stored
+              let dosesValue = 0;
 
-            if (typeof report.total_doses === "number") {
-              dosesValue = report.total_doses;
-            } else if (report.fixed_doses || report.outreach_doses) {
-              dosesValue = (report.fixed_doses || 0) + (report.outreach_doses || 0);
-            }
+              if (typeof report.total_doses === "number") {
+                dosesValue = report.total_doses;
+              } else if (report.fixed_doses || report.outreach_doses) {
+                dosesValue =
+                  (report.fixed_doses || 0) + (report.outreach_doses || 0);
+              }
 
-            return sum + dosesValue;
-          }, 0)
-        : 0;
-      
-      console.log(`Total doses for ${format(targetDate, "MMM yyyy")}: ${totalDoses}`);
+              return sum + dosesValue;
+            }, 0)
+          : 0;
+
+      console.log(
+        `Total doses for ${format(targetDate, "MMM yyyy")}: ${totalDoses}`
+      );
 
       // Add month data, highlighting the selected month
       const isSelectedMonth = i === 0;
-      
+
       monthlyData.push({
         month: format(targetDate, "MMM"),
         fullLabel: format(targetDate, "MMMM yyyy"),
         doses: totalDoses,
-        isSelected: isSelectedMonth
+        isSelected: isSelectedMonth,
       });
     }
 
@@ -1424,8 +1420,8 @@ const Dashboard = () => {
                     stats.performanceBreakdown?.highPerforming
                       .percentOfAllDoses || 0
                   )}% of doses from ${(
-                    (stats.performanceBreakdown?.highPerforming.count || 0) /
-                    (stats.performanceBreakdown?.totalCenters || 1) *
+                    ((stats.performanceBreakdown?.highPerforming.count || 0) /
+                      (stats.performanceBreakdown?.totalCenters || 1)) *
                     100
                   ).toFixed(1)}% of centers`}
                   icon="star"
@@ -1610,7 +1606,7 @@ const Dashboard = () => {
                     <h3 className="text-lg font-medium mb-2">Reports</h3>
                     <div className="flex items-end gap-2">
                       <span className="text-2xl font-bold">
-                        {summaryData.recentReports}
+                        {reportsData?.length || 0}
                       </span>
                       <span className="text-sm text-gray-600">
                         in the last 30 days
@@ -1706,122 +1702,6 @@ const Dashboard = () => {
                     />
                   </ErrorBoundary>
                 </div>
-              </div>
-            </div>
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Recent Reports</h2>
-                <Link
-                  href="/reports"
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View all reports →
-                </Link>
-              </div>
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Center
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Month
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Vaccinations
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Type
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Date Submitted
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {recentCenterReports && recentCenterReports.length > 0 ? (
-                      recentCenterReports.map((report) => (
-                        <tr key={report.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="font-medium text-gray-900">
-                              {report.healthcare_center?.name ||
-                                "Unknown Center"}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {report.healthcare_center ? (
-                                <>
-                                  {report.healthcare_center.state ||
-                                    "Unknown State"}
-                                  ,{" "}
-                                  {report.healthcare_center.lga ||
-                                    "Unknown LGA"}
-                                </>
-                              ) : (
-                                "Location unavailable"
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {report.reporting_month
-                              ? format(
-                                  new Date(report.reporting_month),
-                                  "MMMM yyyy"
-                                )
-                              : "Unknown Date"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {typeof report.total_vaccinations === "number"
-                              ? report.total_vaccinations
-                              : 0}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                report.healthcare_center?.is_treatment_area
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {report.healthcare_center?.is_treatment_area
-                                ? "Treatment"
-                                : "Control"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {report.created_at
-                              ? format(new Date(report.created_at), "PP")
-                              : "Unknown"}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-6 py-4 text-center text-sm text-gray-500"
-                        >
-                          No recent reports found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
             </div>
           </>
