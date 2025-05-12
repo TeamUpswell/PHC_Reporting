@@ -205,9 +205,7 @@ export default function BulkEntry() {
               fixed_doses: report.fixed_doses,
               outreach: report.outreach,
               outreach_doses: report.outreach_doses,
-              total_doses:
-                Number(report.fixed_doses || 0) +
-                Number(report.outreach_doses || 0),
+              total_doses: report.fixed_doses + report.outreach_doses,
               misinformation: report.misinformation || "",
               dhis_check: report.dhis_check,
             };
