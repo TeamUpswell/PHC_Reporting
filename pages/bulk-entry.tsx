@@ -567,6 +567,8 @@ export default function BulkEntry() {
                 {/* Stock fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
+                    id={`in-stock-${center.id}`}
+                    aria-label={`In stock status for ${center.name}`}
                     value={centerData[center.id]?.in_stock ? "true" : "false"}
                     onChange={(e) =>
                       handleCheckboxChange(
@@ -584,6 +586,8 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
+                    id={`stock-beginning-${center.id}`}
+                    aria-label={`Stock beginning for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.stock_beginning || 0}
                     onChange={(e) =>
@@ -599,6 +603,8 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
+                    id={`stock-end-${center.id}`}
+                    aria-label={`Stock end for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.stock_end || 0}
                     onChange={(e) =>
@@ -608,52 +614,29 @@ export default function BulkEntry() {
                   />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={centerData[center.id]?.shortage ? "true" : "false"}
-                      onChange={(e) =>
-                        handleCheckboxChange(
-                          center.id,
-                          "shortage",
-                          e.target.value === "true"
-                        )
-                      }
-                      className="border border-gray-300 rounded-md p-1 text-sm"
-                    >
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                    <button
-                      onClick={() =>
-                        openNotesModal(
-                          { id: center.id, name: center.name },
-                          "shortage"
-                        )
-                      }
-                      className="ml-2 p-1 text-blue-600 hover:text-blue-800"
-                      disabled={!centerData[center.id]?.shortage}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                  <select
+                    id={`shortage-${center.id}`}
+                    aria-label={`Shortage status for ${center.name}`}
+                    value={centerData[center.id]?.shortage ? "true" : "false"}
+                    onChange={(e) =>
+                      handleCheckboxChange(
+                        center.id,
+                        "shortage",
+                        e.target.value === "true"
+                      )
+                    }
+                    className="border border-gray-300 rounded-md p-1 text-sm"
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
                 </td>
                 {/* Doses fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
+                    id={`fixed-doses-${center.id}`}
+                    aria-label={`Fixed doses for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.fixed_doses || 0}
                     onChange={(e) =>
@@ -668,6 +651,8 @@ export default function BulkEntry() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
+                    id={`outreach-${center.id}`}
+                    aria-label={`Outreach status for ${center.name}`}
                     value={centerData[center.id]?.outreach ? "true" : "false"}
                     onChange={(e) =>
                       handleCheckboxChange(
@@ -685,6 +670,8 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
+                    id={`outreach-doses-${center.id}`}
+                    aria-label={`Outreach doses for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.outreach_doses || 0}
                     onChange={(e) =>
@@ -703,6 +690,8 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
+                    id={`total-doses-${center.id}`}
+                    aria-label={`Total doses for ${center.name} (calculated automatically)`}
                     value={centerData[center.id]?.total_doses || 0}
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
                     disabled
@@ -711,6 +700,8 @@ export default function BulkEntry() {
                 {/* Additional fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
+                    id={`dhis-check-${center.id}`}
+                    aria-label={`DHIS2 status for ${center.name}`}
                     value={centerData[center.id]?.dhis_check ? "true" : "false"}
                     onChange={(e) =>
                       handleCheckboxChange(
