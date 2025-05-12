@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import Chart from "chart.js/auto";
+import "../styles/charts.css";
 
 interface DataPoint {
   label: string;
@@ -49,7 +51,7 @@ const BarChart: React.FC<BarChartProps> = ({
   return (
     <div className="w-full">
       {title && <h3 className="text-lg font-medium mb-4">{title}</h3>}
-      <div style={{ height }} className="w-full">
+      <div className="chart-container" style={{ height }}>
         <div className="flex h-full items-end">
           {data.map((item) => (
             <div
@@ -69,6 +71,13 @@ const BarChart: React.FC<BarChartProps> = ({
             </div>
           ))}
         </div>
+      </div>
+      <div className="legend-container">
+        {data.map((item) => (
+          <div key={item.label} className="legend-item">
+            <span className="text-xs font-medium">{item.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
