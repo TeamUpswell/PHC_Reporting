@@ -48,7 +48,9 @@ export default function BulkEntry() {
   >({});
 
   // Add this near your other state declarations
-  const [centerLastReportMonths, setCenterLastReportMonths] = useState<Record<string, string>>({});
+  const [centerLastReportMonths, setCenterLastReportMonths] = useState<
+    Record<string, string>
+  >({});
 
   // Notes modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,10 +67,14 @@ export default function BulkEntry() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track modified center IDs
-  const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(new Set());
+  const [modifiedCenterIds, setModifiedCenterIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // Track centers with existing data
-  const [centersWithExistingData, setCentersWithExistingData] = useState<Set<string>>(new Set());
+  const [centersWithExistingData, setCentersWithExistingData] = useState<
+    Set<string>
+  >(new Set());
 
   // Hide reported centers state
   const [hideReportedCenters, setHideReportedCenters] = useState(false);
@@ -200,11 +206,15 @@ export default function BulkEntry() {
       setCentersWithExistingData(centersWithData);
 
       // Fetch the latest reports for each center
-      const { data: latestReportsData, error: latestReportsError } = await supabase
-        .from("monthly_reports")
-        .select("center_id, report_month, created_at")
-        .in("center_id", centersData.map(center => center.id))
-        .order("report_month", { ascending: false });
+      const { data: latestReportsData, error: latestReportsError } =
+        await supabase
+          .from("monthly_reports")
+          .select("center_id, report_month, created_at")
+          .in(
+            "center_id",
+            centersData.map((center) => center.id)
+          )
+          .order("report_month", { ascending: false });
 
       if (latestReportsError) throw latestReportsError;
 
@@ -213,7 +223,7 @@ export default function BulkEntry() {
       if (latestReportsData && latestReportsData.length > 0) {
         // Group reports by center_id
         const centerReports: Record<string, any[]> = {};
-        latestReportsData.forEach(report => {
+        latestReportsData.forEach((report) => {
           if (!centerReports[report.center_id]) {
             centerReports[report.center_id] = [];
           }
@@ -223,12 +233,17 @@ export default function BulkEntry() {
         // Get most recent report for each center
         Object.entries(centerReports).forEach(([centerId, reports]) => {
           // Sort by date (newest first)
-          reports.sort((a, b) =>
-            new Date(b.report_month).getTime() - new Date(a.report_month).getTime()
+          reports.sort(
+            (a, b) =>
+              new Date(b.report_month).getTime() -
+              new Date(a.report_month).getTime()
           );
           // Get the month of the most recent report
           if (reports.length > 0) {
-            lastReportMonths[centerId] = reports[0].report_month.substring(0, 7);
+            lastReportMonths[centerId] = reports[0].report_month.substring(
+              0,
+              7
+            );
           }
         });
       }
@@ -246,7 +261,11 @@ export default function BulkEntry() {
   };
 
   // Generic handlers for different field types
-  const handleCheckboxChange = (centerId: string, field: string, checked: boolean) => {
+  const handleCheckboxChange = (
+    centerId: string,
+    field: string,
+    checked: boolean
+  ) => {
     setCenterData((prev) => ({
       ...prev,
       [centerId]: {
@@ -254,37 +273,41 @@ export default function BulkEntry() {
         [field]: checked,
       },
     }));
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
     setHasUnsavedChanges(true);
   };
 
-  const handleNumberChange = (centerId: string, field: string, value: string) => {
+  const handleNumberChange = (
+    centerId: string,
+    field: string,
+    value: string
+  ) => {
     const numValue = parseInt(value, 10) || 0;
-    
+
     setCenterData((prev) => {
       const updatedCenter = { ...prev[centerId], [field]: numValue };
-      
+
       // Auto-calculate total doses if fixed_doses or outreach_doses changes
-      if (field === 'fixed_doses' || field === 'outreach_doses') {
-        const fixedDoses = field === 'fixed_doses' 
-          ? numValue 
-          : (prev[centerId]?.fixed_doses || 0);
-          
-        const outreachDoses = field === 'outreach_doses' 
-          ? numValue 
-          : (prev[centerId]?.outreach_doses || 0);
-          
+      if (field === "fixed_doses" || field === "outreach_doses") {
+        const fixedDoses =
+          field === "fixed_doses" ? numValue : prev[centerId]?.fixed_doses || 0;
+
+        const outreachDoses =
+          field === "outreach_doses"
+            ? numValue
+            : prev[centerId]?.outreach_doses || 0;
+
         updatedCenter.total_doses = fixedDoses + outreachDoses;
       }
-      
+
       return {
         ...prev,
         [centerId]: updatedCenter,
       };
     });
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
     setHasUnsavedChanges(true);
@@ -298,7 +321,7 @@ export default function BulkEntry() {
         [field]: value,
       },
     }));
-    
+
     // Track this center as modified
     setModifiedCenterIds((prev) => new Set(prev).add(centerId));
     setHasUnsavedChanges(true);
@@ -335,9 +358,14 @@ export default function BulkEntry() {
     setIsSaving(true);
 
     try {
-      // Check if user exists
+      // Add before saving
       if (!user) {
-        throw new Error("User not authenticated");
+        setMessage({
+          text: "You must be logged in to save data",
+          type: "error",
+        });
+        setIsSaving(false);
+        return;
       }
 
       // Filter reports to only include modified centers
@@ -364,7 +392,7 @@ export default function BulkEntry() {
       if (reportsToInsert.length === 0) {
         setMessage({
           text: "No changes were made to any centers.",
-          type: "error"
+          type: "error",
         });
         setIsSaving(false);
         return;
@@ -374,39 +402,36 @@ export default function BulkEntry() {
       const { error } = await supabase
         .from("monthly_reports")
         .upsert(reportsToInsert, {
-          onConflict: 'center_id,report_month',
-          ignoreDuplicates: false
+          onConflict: "center_id,report_month",
+          ignoreDuplicates: false,
         });
 
-      if (error) throw error;
+      if (error) {
+        let errorMessage = "An error occurred while saving data";
+        // For Supabase specific errors
+        if ("code" in error && error.code === "23505") {
+          errorMessage = "A report already exists for this center and month";
+        }
+        setMessage({
+          text: errorMessage,
+          type: "error",
+        });
+        throw error;
+      }
 
       // Refetch all centers data for the current state and month
       await fetchCenters(selectedState);
 
       setMessage({
         text: `Updated data for ${reportsToInsert.length} centers`,
-        type: "success"
+        type: "success",
       });
-      
+
       // Reset the modified centers tracking after successful save
       setModifiedCenterIds(new Set());
       setHasUnsavedChanges(false);
-      
     } catch (error) {
       console.error("Error saving data:", error);
-      
-      // Type-safe error handling
-      let errorMessage: string;
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else {
-        errorMessage = String(error);
-      }
-      
-      setMessage({
-        text: errorMessage,
-        type: "error"
-      });
     } finally {
       setIsSaving(false);
     }
@@ -493,14 +518,21 @@ export default function BulkEntry() {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {centers
-            .filter(center => !hideReportedCenters || !centersWithExistingData.has(center.id))
+            .filter(
+              (center) =>
+                !hideReportedCenters || !centersWithExistingData.has(center.id)
+            )
             .map((center) => (
               <tr
                 key={center.id}
                 className={`
                   ${center.is_treatment_area ? "bg-green-50" : ""}
                   ${modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}
-                  ${centersWithExistingData.has(center.id) ? "border-l-4 border-green-500" : ""}
+                  ${
+                    centersWithExistingData.has(center.id)
+                      ? "border-l-4 border-green-500"
+                      : ""
+                  }
                 `}
               >
                 <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
@@ -519,10 +551,10 @@ export default function BulkEntry() {
                       </span>
                     )}
                     {centerLastReportMonths[center.id] && (
-                      <span 
+                      <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          centerLastReportMonths[center.id] === reportMonth 
-                            ? "bg-green-100 text-green-800" 
+                          centerLastReportMonths[center.id] === reportMonth
+                            ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-600"
                         }`}
                         title="Last reported month"
@@ -570,11 +602,7 @@ export default function BulkEntry() {
                     min="0"
                     value={centerData[center.id]?.stock_end || 0}
                     onChange={(e) =>
-                      handleNumberChange(
-                        center.id,
-                        "stock_end",
-                        e.target.value
-                      )
+                      handleNumberChange(center.id, "stock_end", e.target.value)
                     }
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                   />
@@ -799,7 +827,9 @@ export default function BulkEntry() {
           {selectedState && (
             <button
               onClick={saveAllData}
-              disabled={isSaving || centers.length === 0 || modifiedCenterIds.size === 0}
+              disabled={
+                isSaving || centers.length === 0 || modifiedCenterIds.size === 0
+              }
               className={`font-medium py-2 px-4 rounded disabled:opacity-50 ${
                 hasUnsavedChanges
                   ? "bg-yellow-500 hover:bg-yellow-600 text-white"
@@ -826,7 +856,8 @@ export default function BulkEntry() {
                   Monthly HPV Vaccination Data
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Enter data for all centers in {selectedState} for {reportMonth}
+                  Enter data for all centers in {selectedState} for{" "}
+                  {reportMonth}
                 </p>
               </div>
               <div className="flex items-center">
@@ -837,7 +868,10 @@ export default function BulkEntry() {
                   onChange={(e) => setHideReportedCenters(e.target.checked)}
                   className="h-4 w-4 text-blue-600"
                 />
-                <label htmlFor="hide-reported" className="ml-2 text-sm text-gray-700">
+                <label
+                  htmlFor="hide-reported"
+                  className="ml-2 text-sm text-gray-700"
+                >
                   Hide reported centers
                 </label>
               </div>
