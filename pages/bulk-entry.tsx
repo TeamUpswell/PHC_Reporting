@@ -27,6 +27,14 @@ interface CenterReportData {
   dhis_check: boolean;
 }
 
+// Add this type near your other interface definitions
+type NumericField =
+  | "stock_beginning"
+  | "stock_end"
+  | "fixed_doses"
+  | "outreach_doses"
+  | "total_doses";
+
 export default function BulkEntry() {
   const router = useRouter();
   const { user } = useAuth(); // Add this line to get the authenticated user
@@ -328,7 +336,7 @@ export default function BulkEntry() {
     setHasUnsavedChanges(true);
   };
 
-  const handleInputFocus = (centerId: string, field: string) => {
+  const handleInputFocus = (centerId: string, field: NumericField) => {
     if (centerData[centerId]?.[field] === 0) {
       // Create a temporary copy without modifying the actual data
       const updatedData = {
@@ -342,7 +350,7 @@ export default function BulkEntry() {
     }
   };
 
-  const handleInputBlur = (centerId: string, field: string) => {
+  const handleInputBlur = (centerId: string, field: NumericField) => {
     if (centerData[centerId]?.[field] === "") {
       // When field is left empty, revert to zero
       const updatedData = {
