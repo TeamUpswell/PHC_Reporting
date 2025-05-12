@@ -421,7 +421,8 @@ export default function BulkEntry() {
           outreach: report.outreach,
           fixed_doses: report.fixed_doses,
           outreach_doses: report.outreach_doses,
-          total_doses: report.fixed_doses + report.outreach_doses,
+          // Replace line 424 with this:
+total_doses: Number(report.fixed_doses || 0) + Number(report.outreach_doses || 0),
           misinformation: report.misinformation || null,
           dhis_check: report.dhis_check,
           created_at: new Date().toISOString(),
