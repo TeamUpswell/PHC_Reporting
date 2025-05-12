@@ -41,14 +41,16 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [lastReportMonth, setLastReportMonth] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    format(new Date(), "yyyy-MM")
+  );
   const [hasChanges, setHasChanges] = useState(false);
 
   // Load initial data if available
   useEffect(() => {
     if (initialReport) {
       setFormData(initialReport);
-      
+
       // Extract month from report_month for the month selector
       if (initialReport.report_month) {
         const monthStr = initialReport.report_month.substring(0, 7);
@@ -72,7 +74,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         dhis_check: false,
       });
     }
-    
+
     // Fetch last report month for this center
     fetchLastReportMonth();
   }, [centerId, initialReport]);
@@ -86,9 +88,9 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         .eq("center_id", centerId)
         .order("report_month", { ascending: false })
         .limit(1);
-      
+
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         setLastReportMonth(data[0].report_month.substring(0, 7));
       }
@@ -99,9 +101,9 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
   // Update form data when month selector changes
   useEffect(() => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      report_month: `${selectedMonth}-01` // Set to first day of month
+      report_month: `${selectedMonth}-01`, // Set to first day of month
     }));
   }, [selectedMonth]);
 
@@ -122,19 +124,21 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
       setHasChanges(JSON.stringify(formData) !== JSON.stringify(initialReport));
     } else {
       // Check if any non-default values exist (excluding center_id and report_month)
-      const hasNonDefaultValues = Object.entries(formData).some(([key, val]) => {
-        if (key === 'center_id' || key === 'report_month') return false;
-        return val !== 0 && val !== false && val !== "";
-      });
+      const hasNonDefaultValues = Object.entries(formData).some(
+        ([key, val]) => {
+          if (key === "center_id" || key === "report_month") return false;
+          return val !== 0 && val !== false && val !== "";
+        }
+      );
       setHasChanges(hasNonDefaultValues);
     }
   }, [formData, initialReport]);
 
   // New handler for boolean fields using select dropdowns
   const handleBooleanChange = (field: string, value: string) => {
-    setFormData((prev) => ({ 
-      ...prev, 
-      [field]: value === "true" 
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value === "true",
     }));
   };
 
@@ -148,20 +152,18 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   const handleNumberChange = (field: string, value: number) => {
     // Update the form data
     const updatedData = { ...formData, [field]: value };
-    
+
     // Auto-calculate total doses when either doses field changes
-    if (field === 'fixed_doses' || field === 'outreach_doses') {
-      const fixedDoses = field === 'fixed_doses' 
-        ? value 
-        : (formData.fixed_doses || 0);
-        
-      const outreachDoses = field === 'outreach_doses' 
-        ? value 
-        : (formData.outreach_doses || 0);
-        
+    if (field === "fixed_doses" || field === "outreach_doses") {
+      const fixedDoses =
+        field === "fixed_doses" ? value : formData.fixed_doses || 0;
+
+      const outreachDoses =
+        field === "outreach_doses" ? value : formData.outreach_doses || 0;
+
       updatedData.total_doses = fixedDoses + outreachDoses;
     }
-    
+
     setFormData(updatedData);
   };
 
@@ -174,8 +176,9 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
     try {
       const reportData = {
         ...formData,
-        total_doses: (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
-        updated_at: new Date().toISOString()
+        total_doses:
+          (formData.fixed_doses || 0) + (formData.outreach_doses || 0),
+        updated_at: new Date().toISOString(),
       };
 
       // If it's a new report, also add created_at and created_by
@@ -200,8 +203,8 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         const { error: insertError } = await supabase
           .from("monthly_reports")
           .upsert([reportData], {
-            onConflict: 'center_id,report_month',
-            ignoreDuplicates: false
+            onConflict: "center_id,report_month",
+            ignoreDuplicates: false,
           });
 
         if (insertError) throw insertError;
@@ -216,7 +219,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
       } else {
         errorMessage = String(error);
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -243,22 +246,31 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
       {/* Month selector */}
       <div className="mb-6">
-        <label className="block text-gray-700 font-medium mb-2">Report Month</label>
+        <label
+          htmlFor="report-month"
+          className="block text-gray-700 font-medium mb-2"
+        >
+          Report Month
+        </label>
         <input
+          id="report-month"
           type="month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           className="w-full border rounded-lg px-3 py-2"
+          aria-label="Report month"
         />
       </div>
-      
+
       {lastReportMonth && (
         <div className="mb-4">
-          <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
-            lastReportMonth === selectedMonth
-              ? "bg-green-100 text-green-800 border border-green-300" 
-              : "bg-gray-100 text-gray-600 border border-gray-300"
-          }`}>
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+              lastReportMonth === selectedMonth
+                ? "bg-green-100 text-green-800 border border-green-300"
+                : "bg-gray-100 text-gray-600 border border-gray-300"
+            }`}
+          >
             Last report: {lastReportMonth}
           </span>
         </div>
@@ -271,10 +283,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </h3>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="in-stock"
+            className="block text-gray-700 font-medium mb-2"
+          >
             HPV vaccine in stock during this month
           </label>
           <select
+            id="in-stock"
             value={formData.in_stock ? "true" : "false"}
             onChange={(e) => handleBooleanChange("in_stock", e.target.value)}
             className="w-full border rounded-lg px-3 py-2"
@@ -286,28 +302,43 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="stock-beginning"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Stock at beginning of month
             </label>
             <input
+              id="stock-beginning"
               type="number"
               name="stock_beginning"
               value={formData.stock_beginning || 0}
-              onChange={(e) => handleNumberChange("stock_beginning", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleNumberChange(
+                  "stock_beginning",
+                  parseInt(e.target.value) || 0
+                )
+              }
               className="w-full border rounded-lg px-3 py-2"
               min="0"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="stock-end"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Stock at end of month
             </label>
             <input
+              id="stock-end"
               type="number"
               name="stock_end"
               value={formData.stock_end || 0}
-              onChange={(e) => handleNumberChange("stock_end", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleNumberChange("stock_end", parseInt(e.target.value) || 0)
+              }
               className="w-full border rounded-lg px-3 py-2"
               min="0"
             />
@@ -315,10 +346,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="shortage"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Experienced shortage during this month
           </label>
           <select
+            id="shortage"
             value={formData.shortage ? "true" : "false"}
             onChange={(e) => handleBooleanChange("shortage", e.target.value)}
             className="w-full border rounded-lg px-3 py-2"
@@ -330,10 +365,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
         {formData.shortage && (
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="shortage-response"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Shortage Response Actions
             </label>
             <textarea
+              id="shortage-response"
               name="shortage_response"
               value={formData.shortage_response || ""}
               onChange={handleInputChange}
@@ -353,24 +392,34 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="fixed-doses"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Fixed Sessions Doses Given
             </label>
             <input
+              id="fixed-doses"
               type="number"
               name="fixed_doses"
               value={formData.fixed_doses || 0}
-              onChange={(e) => handleNumberChange("fixed_doses", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleNumberChange("fixed_doses", parseInt(e.target.value) || 0)
+              }
               className="w-full border rounded-lg px-3 py-2"
               min="0"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="outreach"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Conducted outreach this month
             </label>
             <select
+              id="outreach"
               value={formData.outreach ? "true" : "false"}
               onChange={(e) => handleBooleanChange("outreach", e.target.value)}
               className="w-full border rounded-lg px-3 py-2"
@@ -380,13 +429,22 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
             </select>
 
             <div className="mt-4">
-              <label className="block text-gray-700 font-medium mb-2">
+              <label
+                htmlFor="outreach-doses"
+                className="block text-gray-700 font-medium mb-2"
+              >
                 Outreach Doses Given
               </label>
               <input
+                id="outreach-doses"
                 type="number"
                 value={formData.outreach_doses || 0}
-                onChange={(e) => handleNumberChange("outreach_doses", parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleNumberChange(
+                    "outreach_doses",
+                    parseInt(e.target.value) || 0
+                  )
+                }
                 className={`w-full border rounded-lg px-3 py-2 ${
                   !formData.outreach ? "bg-gray-100" : ""
                 }`}
@@ -397,10 +455,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-2">
+            <label
+              htmlFor="total-doses"
+              className="block text-gray-700 font-medium mb-2"
+            >
               Total Doses Given
             </label>
             <input
+              id="total-doses"
               type="number"
               value={formData.total_doses || 0}
               className="w-full border rounded-lg px-3 py-2 bg-gray-100"
@@ -420,10 +482,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </h3>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="misinformation"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Misinformation or Challenges
           </label>
           <textarea
+            id="misinformation"
             name="misinformation"
             value={formData.misinformation || ""}
             onChange={handleInputChange}
@@ -434,10 +500,14 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="dhis-check"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Data has been entered in DHIS2
           </label>
           <select
+            id="dhis-check"
             value={formData.dhis_check ? "true" : "false"}
             onChange={(e) => handleBooleanChange("dhis_check", e.target.value)}
             className="w-full border rounded-lg px-3 py-2"
@@ -460,7 +530,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
           type="submit"
           disabled={loading || !hasChanges}
           className={`px-6 py-2 border border-transparent rounded-md shadow-sm font-medium ${
-            hasChanges 
+            hasChanges
               ? "bg-yellow-500 hover:bg-yellow-600 text-white"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
