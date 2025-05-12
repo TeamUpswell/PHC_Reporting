@@ -56,6 +56,8 @@ const CenterForm: React.FC<CenterFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [addressSearchResults, setAddressSearchResults] = useState([]);
   const addressInputRef = useRef(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     if (center) {
@@ -173,8 +175,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">Name</label>
+          <label
+            htmlFor="center-name"
+            className="block text-gray-700 font-medium mb-2"
+          >
+            Name
+          </label>
           <input
+            id="center-name"
             type="text"
             name="name"
             value={formData.name || ""}
@@ -185,8 +193,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">Area</label>
+          <label
+            htmlFor="center-area"
+            className="block text-gray-700 font-medium mb-2"
+          >
+            Area
+          </label>
           <input
+            id="center-area"
             type="text"
             name="area"
             value={formData.area || ""}
@@ -197,8 +211,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">LGA</label>
+          <label
+            htmlFor="center-lga"
+            className="block text-gray-700 font-medium mb-2"
+          >
+            LGA
+          </label>
           <input
+            id="center-lga"
             type="text"
             name="lga"
             value={formData.lga || ""}
@@ -209,8 +229,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">Phone</label>
+          <label
+            htmlFor="center-phone"
+            className="block text-gray-700 font-medium mb-2"
+          >
+            Phone
+          </label>
           <input
+            id="center-phone"
             type="text"
             name="phone"
             value={formData.phone || ""}
@@ -220,11 +246,15 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4 md:col-span-2">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="center-address"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Address
           </label>
           <input
             ref={addressInputRef}
+            id="center-address"
             type="text"
             name="address"
             value={formData.address || ""}
@@ -235,10 +265,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="vaccination-days"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Vaccination Days
           </label>
           <input
+            id="vaccination-days"
             type="text"
             name="vaccination_days"
             value={formData.vaccination_days || ""}
@@ -249,10 +283,14 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="working-hours"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Working Hours
           </label>
           <input
+            id="working-hours"
             type="text"
             name="working_hours"
             value={formData.working_hours || ""}
@@ -309,6 +347,40 @@ const CenterForm: React.FC<CenterFormProps> = ({
           <p className="mt-1 text-sm text-gray-500">
             Indicates if this center is in a designated treatment area
           </p>
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="new-password" className="block text-gray-700 mb-2">
+            New Password
+          </label>
+          <input
+            id="new-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`w-full px-3 py-2 border rounded ${
+              password && password.length < 6 ? "border-red-500" : ""
+            }`}
+            required
+            minLength={6}
+            placeholder="Enter new password"
+            aria-describedby="password-requirements"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label htmlFor="confirm-password" className="block text-gray-700 mb-2">
+            Confirm Password
+          </label>
+          <input
+            id="confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full px-3 py-2 border rounded"
+            required
+            placeholder="Confirm your new password"
+          />
         </div>
       </div>
 

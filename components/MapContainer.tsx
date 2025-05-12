@@ -1,7 +1,7 @@
+import React, { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import { HealthcareCenter } from "../types";
-import { useEffect, useRef, useState } from "react";
 
 interface MapContainerProps {
   centers: HealthcareCenter[];

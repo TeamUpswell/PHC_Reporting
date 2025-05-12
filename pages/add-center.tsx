@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -16,7 +17,10 @@ export default function AddCenter() {
     setError(null);
 
     try {
-      const { data, error } = await supabase.from("healthcare_centers").insert([center]).select();
+      const { data, error } = await supabase
+        .from("healthcare_centers")
+        .insert([center])
+        .select();
 
       if (error) throw error;
 

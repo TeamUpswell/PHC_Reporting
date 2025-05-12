@@ -48,17 +48,17 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
             {
               label: "Vaccine Doses",
               data: data.map((item) => item.doses),
-              backgroundColor: data.map((item) => 
-                item.isSelected 
+              backgroundColor: data.map((item) =>
+                item.isSelected
                   ? "rgba(59, 130, 246, 0.8)" // Highlight selected month
                   : "rgba(59, 130, 246, 0.6)"
               ),
-              borderColor: data.map((item) => 
+              borderColor: data.map((item) =>
                 item.isSelected
                   ? "rgb(29, 78, 216)" // Darker border for selected month
                   : "rgb(37, 99, 235)"
               ),
-              borderWidth: data.map((item) => item.isSelected ? 2 : 1),
+              borderWidth: data.map((item) => (item.isSelected ? 2 : 1)),
             },
           ],
         },
@@ -117,7 +117,7 @@ const VaccinationChart: React.FC<VaccinationChartProps> = ({
     };
   }, [data]);
 
-  if (!data || data.length === 0 || data.every(item => item.doses === 0)) {
+  if (!data || data.length === 0 || data.every((item) => item.doses === 0)) {
     return (
       <div
         style={{ height }}

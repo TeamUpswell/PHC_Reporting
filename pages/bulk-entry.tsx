@@ -523,9 +523,9 @@ export default function BulkEntry() {
               (center) =>
                 !hideReportedCenters || !centersWithExistingData.has(center.id)
             )
-            .map((center) => (
+            .map((center, index) => (
               <tr
-                key={center.id}
+                key={`${center.id}-${index}`}
                 className={`
                   ${center.is_treatment_area ? "bg-green-50" : ""}
                   ${modifiedCenterIds.has(center.id) ? "bg-blue-50" : ""}
@@ -568,7 +568,7 @@ export default function BulkEntry() {
                 {/* Stock fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
-                    id={`in-stock-${center.id}`}
+                    id={`in-stock-${center.id}-${index}`}
                     aria-label={`In stock status for ${center.name}`}
                     value={centerData[center.id]?.in_stock ? "true" : "false"}
                     onChange={(e) =>
@@ -587,7 +587,7 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    id={`stock-beginning-${center.id}`}
+                    id={`stock-beginning-${center.id}-${index}`}
                     aria-label={`Stock beginning for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.stock_beginning || 0}
@@ -604,7 +604,7 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    id={`stock-end-${center.id}`}
+                    id={`stock-end-${center.id}-${index}`}
                     aria-label={`Stock end for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.stock_end || 0}
@@ -616,7 +616,7 @@ export default function BulkEntry() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
-                    id={`shortage-${center.id}`}
+                    id={`shortage-${center.id}-${index}`}
                     aria-label={`Shortage status for ${center.name}`}
                     value={centerData[center.id]?.shortage ? "true" : "false"}
                     onChange={(e) =>
@@ -636,7 +636,7 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    id={`fixed-doses-${center.id}`}
+                    id={`fixed-doses-${center.id}-${index}`}
                     aria-label={`Fixed doses for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.fixed_doses || 0}
@@ -652,7 +652,7 @@ export default function BulkEntry() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
-                    id={`outreach-${center.id}`}
+                    id={`outreach-${center.id}-${index}`}
                     aria-label={`Outreach status for ${center.name}`}
                     value={centerData[center.id]?.outreach ? "true" : "false"}
                     onChange={(e) =>
@@ -671,7 +671,7 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    id={`outreach-doses-${center.id}`}
+                    id={`outreach-doses-${center.id}-${index}`}
                     aria-label={`Outreach doses for ${center.name}`}
                     min="0"
                     value={centerData[center.id]?.outreach_doses || 0}
@@ -691,7 +691,7 @@ export default function BulkEntry() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <input
                     type="number"
-                    id={`total-doses-${center.id}`}
+                    id={`total-doses-${center.id}-${index}`}
                     aria-label={`Total doses for ${center.name} (calculated automatically)`}
                     value={centerData[center.id]?.total_doses || 0}
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm bg-gray-100"
@@ -701,7 +701,7 @@ export default function BulkEntry() {
                 {/* Additional fields */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
-                    id={`dhis-check-${center.id}`}
+                    id={`dhis-check-${center.id}-${index}`}
                     aria-label={`DHIS2 status for ${center.name}`}
                     value={centerData[center.id]?.dhis_check ? "true" : "false"}
                     onChange={(e) =>

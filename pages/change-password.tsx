@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -92,8 +93,14 @@ export default function ChangePassword() {
 
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="block text-gray-700 mb-2">New Password</label>
+              <label
+                htmlFor="new-password"
+                className="block text-gray-700 mb-2"
+              >
+                New Password
+              </label>
               <input
+                id="new-password"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -102,24 +109,34 @@ export default function ChangePassword() {
                 }`}
                 required
                 minLength={6}
+                placeholder="Enter new password"
+                aria-describedby="password-requirements"
               />
               {newPassword && newPassword.length < 6 && (
-                <p className="text-red-500 text-sm mt-1">
+                <p
+                  id="password-requirements"
+                  className="text-red-500 text-sm mt-1"
+                >
                   Password must be at least 6 characters
                 </p>
               )}
             </div>
 
             <div className="mb-6">
-              <label className="block text-gray-700 mb-2">
+              <label
+                htmlFor="confirm-password"
+                className="block text-gray-700 mb-2"
+              >
                 Confirm New Password
               </label>
               <input
+                id="confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-3 py-2 border rounded"
                 required
+                placeholder="Confirm your new password"
               />
             </div>
 

@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
@@ -23,7 +24,8 @@ export default function ForgotPassword() {
 
     try {
       // Use environment variable or fallback to production URL
-      const siteURL = process.env.NEXT_PUBLIC_SITE_URL || "https://vstracker.upswell.app";
+      const siteURL =
+        process.env.NEXT_PUBLIC_SITE_URL || "https://vstracker.upswell.app";
       console.log(`Using site URL for redirects: ${siteURL}`);
 
       // Use explicit redirect URL

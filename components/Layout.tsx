@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "./Navbar";

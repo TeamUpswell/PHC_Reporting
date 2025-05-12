@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -117,24 +118,27 @@ export default function Centers() {
               />
             </div>
             <div className="flex items-center space-x-2">
-              <span>Treatment Area:</span>
+              <label htmlFor="filter-treatment" className="mr-2">
+                Treatment Area:
+              </label>
               <select
+                id="filter-treatment"
                 value={
-                  filterTreatment === null ? "all" : filterTreatment.toString()
+                  filterTreatment === null ? "" : filterTreatment.toString()
                 }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "all") {
+                  if (e.target.value === "") {
                     setFilterTreatment(null);
                   } else {
-                    setFilterTreatment(value === "true");
+                    setFilterTreatment(e.target.value === "true");
                   }
                 }}
-                className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border rounded p-1 text-sm"
+                aria-label="Filter by treatment area"
               >
-                <option value="all">All</option>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
+                <option value="">All</option>
+                <option value="true">Treatment</option>
+                <option value="false">Control</option>
               </select>
             </div>
           </div>
