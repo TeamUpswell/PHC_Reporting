@@ -301,30 +301,40 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="center-latitude"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Latitude
           </label>
           <input
+            id="center-latitude"
             type="number"
             name="latitude"
             value={formData.latitude || ""}
             onChange={handleNumberChange}
             className="w-full border rounded-lg px-3 py-2"
             step="0.000001"
+            placeholder="Enter latitude coordinate"
           />
         </div>
 
         <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-2">
+          <label
+            htmlFor="center-longitude"
+            className="block text-gray-700 font-medium mb-2"
+          >
             Longitude
           </label>
           <input
+            id="center-longitude"
             type="number"
             name="longitude"
             value={formData.longitude || ""}
             onChange={handleNumberChange}
             className="w-full border rounded-lg px-3 py-2"
             step="0.000001"
+            placeholder="Enter longitude coordinate"
           />
         </div>
 
@@ -369,7 +379,10 @@ const CenterForm: React.FC<CenterFormProps> = ({
         </div>
 
         <div className="mb-6">
-          <label htmlFor="confirm-password" className="block text-gray-700 mb-2">
+          <label
+            htmlFor="confirm-password"
+            className="block text-gray-700 mb-2"
+          >
             Confirm Password
           </label>
           <input
