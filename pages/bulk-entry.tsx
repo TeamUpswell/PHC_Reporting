@@ -328,6 +328,34 @@ export default function BulkEntry() {
     setHasUnsavedChanges(true);
   };
 
+  const handleInputFocus = (centerId: string, field: string) => {
+    if (centerData[centerId]?.[field] === 0) {
+      // Create a temporary copy without modifying the actual data
+      const updatedData = {
+        ...centerData,
+        [centerId]: {
+          ...centerData[centerId],
+          [field]: "",
+        },
+      };
+      setCenterData(updatedData);
+    }
+  };
+
+  const handleInputBlur = (centerId: string, field: string) => {
+    if (centerData[centerId]?.[field] === "") {
+      // When field is left empty, revert to zero
+      const updatedData = {
+        ...centerData,
+        [centerId]: {
+          ...centerData[centerId],
+          [field]: 0,
+        },
+      };
+      setCenterData(updatedData);
+    }
+  };
+
   const openNotesModal = (
     center: { id: string; name: string },
     type: "misinformation" | "shortage"
@@ -590,7 +618,7 @@ export default function BulkEntry() {
                     id={`stock-beginning-${center.id}-${index}`}
                     aria-label={`Stock beginning for ${center.name}`}
                     min="0"
-                    value={centerData[center.id]?.stock_beginning || 0}
+                    value={centerData[center.id]?.stock_beginning}
                     onChange={(e) =>
                       handleNumberChange(
                         center.id,
@@ -598,6 +626,10 @@ export default function BulkEntry() {
                         e.target.value
                       )
                     }
+                    onFocus={() =>
+                      handleInputFocus(center.id, "stock_beginning")
+                    }
+                    onBlur={() => handleInputBlur(center.id, "stock_beginning")}
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                   />
                 </td>
@@ -611,6 +643,8 @@ export default function BulkEntry() {
                     onChange={(e) =>
                       handleNumberChange(center.id, "stock_end", e.target.value)
                     }
+                    onFocus={() => handleInputFocus(center.id, "stock_end")}
+                    onBlur={() => handleInputBlur(center.id, "stock_end")}
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                   />
                 </td>
@@ -647,6 +681,8 @@ export default function BulkEntry() {
                         e.target.value
                       )
                     }
+                    onFocus={() => handleInputFocus(center.id, "fixed_doses")}
+                    onBlur={() => handleInputBlur(center.id, "fixed_doses")}
                     className="w-24 border border-gray-300 rounded-md p-1 text-sm"
                   />
                 </td>
@@ -682,6 +718,10 @@ export default function BulkEntry() {
                         e.target.value
                       )
                     }
+                    onFocus={() =>
+                      handleInputFocus(center.id, "outreach_doses")
+                    }
+                    onBlur={() => handleInputBlur(center.id, "outreach_doses")}
                     className={`w-24 border border-gray-300 rounded-md p-1 text-sm ${
                       !centerData[center.id]?.outreach ? "bg-gray-100" : ""
                     }`}
