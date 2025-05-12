@@ -422,7 +422,9 @@ export default function BulkEntry() {
           fixed_doses: report.fixed_doses,
           outreach_doses: report.outreach_doses,
           // Replace line 424 with this:
-total_doses: Number(report.fixed_doses || 0) + Number(report.outreach_doses || 0),
+          total_doses:
+            Number(report.fixed_doses || 0) +
+            Number(report.outreach_doses || 0),
           misinformation: report.misinformation || null,
           dhis_check: report.dhis_check,
           created_at: new Date().toISOString(),
@@ -650,7 +652,7 @@ total_doses: Number(report.fixed_doses || 0) + Number(report.outreach_doses || 0
                     id={`stock-end-${center.id}-${index}`}
                     aria-label={`Stock end for ${center.name}`}
                     min="0"
-                    value={centerData[center.id]?.stock_end || 0}
+                    value={centerData[center.id]?.stock_end}
                     onChange={(e) =>
                       handleNumberChange(center.id, "stock_end", e.target.value)
                     }
@@ -684,7 +686,7 @@ total_doses: Number(report.fixed_doses || 0) + Number(report.outreach_doses || 0
                     id={`fixed-doses-${center.id}-${index}`}
                     aria-label={`Fixed doses for ${center.name}`}
                     min="0"
-                    value={centerData[center.id]?.fixed_doses || 0}
+                    value={centerData[center.id]?.fixed_doses}
                     onChange={(e) =>
                       handleNumberChange(
                         center.id,
@@ -721,7 +723,7 @@ total_doses: Number(report.fixed_doses || 0) + Number(report.outreach_doses || 0
                     id={`outreach-doses-${center.id}-${index}`}
                     aria-label={`Outreach doses for ${center.name}`}
                     min="0"
-                    value={centerData[center.id]?.outreach_doses || 0}
+                    value={centerData[center.id]?.outreach_doses}
                     onChange={(e) =>
                       handleNumberChange(
                         center.id,
