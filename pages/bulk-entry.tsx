@@ -11,16 +11,16 @@ import { useAuth } from "../context/AuthContext";
 interface CenterReportData {
   // Stock information
   in_stock: boolean;
-  stock_beginning: number;
-  stock_end: number;
+  stock_beginning: number | "";
+  stock_end: number | "";
   shortage: boolean;
   shortage_response: string;
 
   // Doses information
-  fixed_doses: number;
+  fixed_doses: number | "";
   outreach: boolean;
-  outreach_doses: number;
-  total_doses: number;
+  outreach_doses: number | "";
+  total_doses: number; // Keep this as number only since it's calculated
 
   // Additional information
   misinformation: string;
