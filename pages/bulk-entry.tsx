@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { HealthcareCenter } from "../types";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext";
+import Link from "next/link";
 
 // Define structure for center data
 interface CenterReportData {
@@ -410,26 +411,34 @@ export default function BulkEntry() {
       // Filter reports to only include modified centers
       const reportsToInsert = Object.entries(centerData)
         .filter(([centerId]) => modifiedCenterIds.has(centerId))
-        .map(([centerId, report]) => ({
-          center_id: centerId,
-          report_month: `${reportMonth}-01`,
-          in_stock: report.in_stock,
-          stock_beginning: report.stock_beginning,
-          stock_end: report.stock_end,
-          shortage: report.shortage,
-          shortage_response: report.shortage_response || null,
-          outreach: report.outreach,
-          fixed_doses: report.fixed_doses,
-          outreach_doses: report.outreach_doses,
-          // Replace line 424 with this:
-          total_doses:
-            Number(report.fixed_doses || 0) +
-            Number(report.outreach_doses || 0),
-          misinformation: report.misinformation || null,
-          dhis_check: report.dhis_check,
-          created_at: new Date().toISOString(),
-          created_by: user.id,
-        }));
+        .map(([centerId, report]) => {
+          const fixedDoses = report.fixed_doses;
+          const outreachDoses = report.outreach_doses;
+          const shortage = report.shortage;
+          const outreach = report.outreach;
+          const dhisCheck = report.dhis_check;
+
+          // Add default values for all required fields
+          const dataToSubmit = {
+            center_id: centerId,
+            report_month: `${reportMonth}-01`,
+            in_stock: report.in_stock,
+            stock_beginning: report.stock_beginning,
+            stock_end: report.stock_end,
+            shortage_response: report.shortage_response || null,
+            misinformation: report.misinformation || null,
+            created_at: new Date().toISOString(),
+            created_by: user.id,
+            fixed_doses: fixedDoses || 0, // Default to 0 if blank
+            outreach_doses: outreachDoses || 0, // Default to 0 if blank
+            total_doses: (fixedDoses || 0) + (outreachDoses || 0), // Calculate total
+            shortage: shortage || false, // Default to false if not specified
+            outreach: outreach || false,
+            dhis_check: dhisCheck || false,
+          };
+
+          return dataToSubmit;
+        });
 
       if (reportsToInsert.length === 0) {
         setMessage({
@@ -812,6 +821,35 @@ export default function BulkEntry() {
         <h1 className="text-2xl font-bold mb-6">
           Bulk HPV Vaccination Data Entry
         </h1>
+
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-4">
+            {/* Your existing month selector likely goes here */}
+          </div>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => router.push("/spreadsheet-upload")}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg
+                className="mr-2 -ml-1 h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Import from Spreadsheet
+            </button>
+
+            {/* Your existing buttons (like Save, Export, etc) would go here */}
+          </div>
+        </div>
 
         {message && (
           <div

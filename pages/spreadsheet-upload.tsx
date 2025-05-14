@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import Layout from "../components/Layout";
 import SpreadsheetUploader from "../components/SpreadsheetUploader";
 import { useAuth } from "../context/AuthContext";
@@ -113,13 +114,34 @@ export default function SpreadsheetUploadPage() {
   };
 
   return (
-    <Layout>
+    <Layout showNavbar={false}>
       <Head>
         <title>Import Monthly Reports - HPV Vaccination</title>
       </Head>
 
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Import Monthly Reports</h1>
+
+        <div className="mb-4">
+          <Link
+            href="/bulk-entry"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg
+              className="mr-2 -ml-1 h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Back to Bulk Entry
+          </Link>
+        </div>
 
         {message && (
           <div
@@ -187,6 +209,27 @@ export default function SpreadsheetUploadPage() {
                   <em>DHIS Check</em> - (Optional) Yes/No or True/False
                 </li>
               </ul>
+              <div className="mb-6 flex">
+                <a
+                  href="/templates/monthly_reports_template.xlsx"
+                  download
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg
+                    className="mr-2 -ml-1 h-5 w-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Download Template
+                </a>
+              </div>
               <SpreadsheetUploader
                 onFileLoaded={handleFileLoaded}
                 onError={handleError}

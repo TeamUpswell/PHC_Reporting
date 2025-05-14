@@ -23,7 +23,6 @@ const SpreadsheetUploader: React.FC<SpreadsheetUploaderProps> = ({
     setIsLoading(true);
 
     try {
-      // Replace dynamic import with direct usage
       const data = await parseSpreadsheet(file);
       onFileLoaded(data);
     } catch (error) {
