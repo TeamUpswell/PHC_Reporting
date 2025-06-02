@@ -4,11 +4,33 @@ import Link from "next/link";
 import Layout from "../components/Layout";
 import SpreadsheetUploader from "../components/SpreadsheetUploader";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabase";
 import { ParsedRow } from "../utils/spreadsheetParser";
 import {
   processBulkReports,
   saveProcessedReports,
 } from "../utils/monthlyReportProcessor";
+
+export const requiredColumns = [
+  "PHC Name",
+  "Month",
+  "Year",
+  // Remove the other fields from required - they can be blank
+];
+
+// Move the previously required fields to optional
+export const optionalColumns = [
+  "Stock Beginning",
+  "Stock End",
+  "Fixed Doses",
+  "Outreach Doses",
+  "In Stock",
+  "Shortage",
+  "Shortage Response",
+  "Outreach",
+  "Misinformation",
+  "DHIS Check",
+];
 
 export default function SpreadsheetUploadPage() {
   const { user } = useAuth();
@@ -46,6 +68,23 @@ export default function SpreadsheetUploadPage() {
       return;
     }
 
+    // Add extensive debugging
+    console.log("=== AUTHENTICATION DEBUG ===");
+    console.log("User from context:", user);
+    console.log("User ID from context:", user.id);
+
+    // Check the actual auth state
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+    console.log("Auth user from supabase:", authUser);
+    console.log("Auth error:", authError);
+
+    // Check if they match
+    console.log("IDs match:", user.id === authUser?.id);
+    console.log("=== END DEBUG ===");
+
     if (!uploadedData || uploadedData.length === 0) {
       setMessage({
         text: "No data to import",
@@ -74,8 +113,11 @@ export default function SpreadsheetUploadPage() {
         return;
       }
 
-      // Save the processed reports
-      const saveResult = await saveProcessedReports(processedReports, user.id);
+      // Save the processed reports - use the auth user ID instead
+      const saveResult = await saveProcessedReports(
+        processedReports,
+        authUser?.id || user.id
+      );
 
       if (saveResult.success) {
         setMessage({
@@ -96,8 +138,11 @@ export default function SpreadsheetUploadPage() {
         });
       }
     } catch (error) {
+      console.error("Import error:", error);
       setMessage({
-        text: error instanceof Error ? error.message : "Failed to import data",
+        text: `Error during import: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         type: "error",
       });
     } finally {
@@ -174,19 +219,20 @@ export default function SpreadsheetUploadPage() {
                   <strong>Year</strong> - Four digit year (e.g., 2023)
                 </li>
                 <li>
-                  <strong>Stock Beginning</strong> - Number of doses at
+                  <em>Stock Beginning</em> - (Optional) Number of doses at
                   beginning of month
                 </li>
                 <li>
-                  <strong>Stock End</strong> - Number of doses at end of month
+                  <em>Stock End</em> - (Optional) Number of doses at end of
+                  month
                 </li>
                 <li>
-                  <strong>Fixed Doses</strong> - Number of doses administered at
-                  the facility
+                  <em>Fixed Doses</em> - (Optional) Number of doses administered
+                  at the facility
                 </li>
                 <li>
-                  <strong>Outreach Doses</strong> - Number of doses administered
-                  during outreach
+                  <em>Outreach Doses</em> - (Optional) Number of doses
+                  administered during outreach
                 </li>
                 <li>
                   <em>In Stock</em> - (Optional) Yes/No or True/False
@@ -209,6 +255,11 @@ export default function SpreadsheetUploadPage() {
                   <em>DHIS Check</em> - (Optional) Yes/No or True/False
                 </li>
               </ul>
+              <p className="mb-4 text-sm text-gray-600">
+                <strong>Note:</strong> Only PHC Name, Month, and Year are
+                required. All other fields can be left blank and will default to
+                appropriate values (0 for numbers, false for checkboxes).
+              </p>
               <div className="mb-6 flex">
                 <a
                   href="/templates/monthly_reports_template.xlsx"
@@ -242,18 +293,17 @@ export default function SpreadsheetUploadPage() {
               {processingErrors.length > 0 && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
                   <h3 className="text-lg font-medium text-red-800 mb-2">
-                    Errors Found
+                    Errors Found ({processingErrors.length} total)
                   </h3>
-                  <ul className="list-disc pl-8 text-red-700">
-                    {processingErrors.slice(0, 10).map((error, index) => (
-                      <li key={index}>
-                        Row {error.row}: {error.message}
-                      </li>
-                    ))}
-                    {processingErrors.length > 10 && (
-                      <li>...and {processingErrors.length - 10} more errors</li>
-                    )}
-                  </ul>
+                  <div className="max-h-60 overflow-y-auto">
+                    <ul className="list-disc pl-8 text-red-700 space-y-1">
+                      {processingErrors.map((error, index) => (
+                        <li key={index} className="text-sm">
+                          <strong>Row {error.row}:</strong> {error.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
 

@@ -1,5 +1,9 @@
-import { supabase } from "../lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../lib/supabase"; // Import your existing client
 import { ParsedRow } from "./spreadsheetParser";
+
+// Don't create the service client on the client side - it won't work
+// We'll use the regular supabase client instead
 
 interface HealthcareCenter {
   id: string;
@@ -23,6 +27,8 @@ interface ProcessedReport {
   total_doses: number;
   misinformation: string | null;
   dhis_check: boolean;
+  created_by?: string;
+  created_at?: string;
 }
 
 export async function processBulkReports(
@@ -47,7 +53,6 @@ export async function processBulkReports(
 
   // Create normalized name mapping for fuzzy matching
   healthcareCenters.forEach((center) => {
-    // Store with normalized name as key for easier matching
     const normalizedName = normalizeName(center.name);
     centerMap.set(normalizedName, center);
   });
@@ -59,7 +64,7 @@ export async function processBulkReports(
   // Process each row
   rawData.forEach((row, index) => {
     try {
-      // Find healthcare center by name (with fuzzy matching)
+      // Find healthcare center by name
       const phcName = findColumnValue(row, [
         "PHC Name",
         "PHCName",
@@ -91,9 +96,33 @@ export async function processBulkReports(
       }
 
       // Create date in YYYY-MM-01 format
-      const reportMonth = formatReportMonth(year.toString(), month.toString());
+      let reportMonth: string;
+      try {
+        reportMonth = formatReportMonth(year.toString(), month.toString());
+      } catch (error) {
+        errors.push({
+          row: index + 1,
+          message: `Invalid date: ${
+            error instanceof Error ? error.message : "Unknown date error"
+          }`,
+        });
+        return;
+      }
 
-      // Extract numeric values
+      // Validate numeric columns with detailed error messages
+      const columnErrors = validateNumericColumns(row, index);
+
+      if (columnErrors.length > 0) {
+        columnErrors.forEach((error) => {
+          errors.push({
+            row: index + 1,
+            message: error,
+          });
+        });
+        return;
+      }
+
+      // If validation passes, extract the values
       const stockBeginning = parseNumericValue(
         findColumnValue(row, [
           "Stock Beginning",
@@ -110,19 +139,6 @@ export async function processBulkReports(
       const outreachDoses = parseNumericValue(
         findColumnValue(row, ["Outreach Doses", "OutreachDoses"])
       );
-
-      if (
-        stockBeginning === null ||
-        stockEnd === null ||
-        fixedDoses === null ||
-        outreachDoses === null
-      ) {
-        errors.push({
-          row: index + 1,
-          message: "Missing or invalid numeric values",
-        });
-        return;
-      }
 
       // Extract boolean values with defaults
       const inStock = parseBooleanValue(
@@ -151,20 +167,20 @@ export async function processBulkReports(
       const misinformation =
         findColumnValue(row, ["Misinformation"])?.toString() || null;
 
-      // Create processed report
+      // Create processed report with all variables properly defined
       const processedReport: ProcessedReport = {
         center_id: center.id,
         center_name: center.name,
         report_month: reportMonth,
         in_stock: inStock,
-        stock_beginning: stockBeginning,
-        stock_end: stockEnd,
+        stock_beginning: stockBeginning || 0,
+        stock_end: stockEnd || 0,
         shortage: shortage,
         shortage_response: shortageResponse,
         outreach: outreach,
-        fixed_doses: fixedDoses,
-        outreach_doses: outreachDoses,
-        total_doses: fixedDoses + outreachDoses,
+        fixed_doses: fixedDoses || 0,
+        outreach_doses: outreachDoses || 0,
+        total_doses: (fixedDoses || 0) + (outreachDoses || 0),
         misinformation: misinformation,
         dhis_check: dhisCheck,
       };
@@ -173,10 +189,9 @@ export async function processBulkReports(
     } catch (error) {
       errors.push({
         row: index + 1,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unknown error processing row",
+        message: `Processing error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       });
     }
   });
@@ -194,12 +209,13 @@ function findColumnValue(
   possibleNames: string[]
 ): string | number | boolean | null {
   for (const name of possibleNames) {
-    if (row[name] !== undefined) return row[name];
+    if (row[name] !== undefined && row[name] !== null) return row[name];
 
     // Try case-insensitive match
     const keys = Object.keys(row);
     const key = keys.find((k) => k.toLowerCase() === name.toLowerCase());
-    if (key !== undefined) return row[key];
+    if (key !== undefined && row[key] !== undefined && row[key] !== null)
+      return row[key];
   }
   return null;
 }
@@ -216,12 +232,38 @@ function normalizeName(name: string): string {
 function parseNumericValue(
   value: string | number | boolean | null
 ): number | null {
-  if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined) return null;
 
-  if (typeof value === "number") return value;
+  // Handle empty strings
+  if (value === "" || value === " ") return null;
 
-  const parsed = parseInt(value.toString(), 10);
-  return isNaN(parsed) ? null : parsed;
+  if (typeof value === "number") {
+    return isNaN(value) ? null : value;
+  }
+
+  // Handle string values
+  const stringValue = value.toString().trim();
+
+  // Allow these as null/empty
+  if (
+    stringValue === "" ||
+    stringValue === "-" ||
+    stringValue === "N/A" ||
+    stringValue === "n/a"
+  ) {
+    return null;
+  }
+
+  // Try to parse as number
+  const parsed = parseFloat(stringValue);
+
+  // If it's NaN, it's invalid
+  if (isNaN(parsed)) {
+    return null;
+  }
+
+  // Round to integer for doses/stock counts
+  return Math.round(parsed);
 }
 
 // Helper to parse boolean values
@@ -300,6 +342,14 @@ export async function saveProcessedReports(
   const errors: string[] = [];
   let savedCount = 0;
 
+  if (!userId) {
+    return {
+      success: false,
+      savedCount: 0,
+      errors: ["User ID is required for saving reports"],
+    };
+  }
+
   // Add created_by and created_at to each report
   const reportsToInsert = reports.map((report) => ({
     ...report,
@@ -307,8 +357,10 @@ export async function saveProcessedReports(
     created_at: new Date().toISOString(),
   }));
 
-  // Process in batches of 100 to avoid hitting limits
-  const batchSize = 100;
+  console.log("Sample report to insert:", reportsToInsert[0]);
+
+  // Use the regular supabase client (not supabaseService)
+  const batchSize = 50;
   for (let i = 0; i < reportsToInsert.length; i += batchSize) {
     const batch = reportsToInsert.slice(i, i + batchSize);
 
@@ -320,7 +372,10 @@ export async function saveProcessedReports(
       });
 
     if (error) {
-      errors.push(`Batch ${i / batchSize + 1} error: ${error.message}`);
+      console.error("Batch insert error:", error);
+      errors.push(
+        `Error saving batch starting at row ${i + 1}: ${error.message}`
+      );
     } else {
       savedCount += batch.length;
     }
@@ -331,4 +386,38 @@ export async function saveProcessedReports(
     savedCount,
     errors,
   };
+}
+
+// Add this new function to provide even more detailed validation
+function validateNumericColumns(row: ParsedRow, rowIndex: number): string[] {
+  const errors: string[] = [];
+
+  const numericFields = [
+    {
+      names: ["Stock Beginning", "StockBeginning", "Beginning Stock"],
+      label: "Stock Beginning",
+    },
+    { names: ["Stock End", "StockEnd", "Ending Stock"], label: "Stock End" },
+    { names: ["Fixed Doses", "FixedDoses"], label: "Fixed Doses" },
+    { names: ["Outreach Doses", "OutreachDoses"], label: "Outreach Doses" },
+  ];
+
+  numericFields.forEach((field) => {
+    const rawValue = findColumnValue(row, field.names);
+
+    // Only validate if the field has a value (not null/empty)
+    if (rawValue !== null && rawValue !== undefined && rawValue !== "") {
+      const parsedValue = parseNumericValue(rawValue);
+
+      if (parsedValue === null) {
+        errors.push(`${field.label}: "${rawValue}" is not a valid number`);
+      } else if (parsedValue < 0) {
+        errors.push(
+          `${field.label}: negative values not allowed (${parsedValue})`
+        );
+      }
+    }
+  });
+
+  return errors;
 }
