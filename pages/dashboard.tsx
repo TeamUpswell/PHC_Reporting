@@ -111,6 +111,13 @@ interface SummaryData {
   prevControlVaccinations: number;
 }
 
+// New interface for available months selector props
+interface AvailableMonthsSelectorProps {
+  availableMonths: string[];
+  selectedDate: Date;
+  onMonthSelect: (date: Date) => void;
+}
+
 const DashboardSkeleton = () => (
   <div>
     <div className="mb-8 flex justify-between items-center">
