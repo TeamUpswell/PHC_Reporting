@@ -524,9 +524,9 @@ const Dashboard = () => {
           console.log("Sample reports structure:", sampleReports);
 
           // Check report_month formats
-          const reportMonthFormats = [
-            ...new Set(reportsData.map((r) => r.report_month).filter(Boolean)),
-          ].slice(0, 10);
+          const reportMonthFormats = Array.from(
+            new Set(reportsData.map((r) => r.report_month).filter(Boolean))
+          ).slice(0, 10);
           console.log("Unique report_month formats found:", reportMonthFormats);
 
           // Check if there are different date field names
@@ -1020,9 +1020,9 @@ const Dashboard = () => {
   }
 
   // Calculate available months for the selector
-  const availableMonths = [
-    ...new Set(reportsData?.map((r) => r.report_month).filter(Boolean)),
-  ].sort((a, b) => {
+  const availableMonths = Array.from(
+    new Set(reportsData?.map((r) => r.report_month).filter(Boolean) || [])
+  ).sort((a, b) => {
     try {
       // Parse dates for proper sorting
       const dateA = new Date(a);
