@@ -230,7 +230,7 @@ const Dashboard = () => {
       }
 
       // Debug what months are actually returned from the database
-      const monthCounts = {};
+      const monthCounts: Record<string, number> = {};
       data.forEach((report) => {
         if (report.report_month) {
           monthCounts[report.report_month] =
