@@ -4,7 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import {
   format,
   subMonths,
@@ -155,20 +155,21 @@ const Dashboard = () => {
   );
 
   const { data: reportsData, error: reportsError } = useSWR(
-    [`monthly_reports`, dateRange],
+    [`monthly_reports`], // Remove dateRange dependency
     async () => {
-      const sixMonthsAgo = format(subMonths(dateRange.start, 5), "yyyy-MM-dd");
-      const endOfCurrentMonth = format(dateRange.end, "yyyy-MM-dd");
-
       const { data, error } = await supabase
         .from("monthly_reports")
         .select("*")
-        .gte("report_month", sixMonthsAgo)
-        .lte("report_month", endOfCurrentMonth)
-        .limit(500);
+        .not("center_name", "is", null) // Only exclude bad data
+        .order("report_month", { ascending: false })
+        .limit(1000); // Increase limit to get all data
 
       if (error) throw error;
       return data;
+    },
+    {
+      revalidateOnFocus: true,
+      refreshInterval: 0, // Disable auto-refresh for now
     }
   );
 
@@ -282,11 +283,14 @@ const Dashboard = () => {
 
   const fetchSummaryData = useCallback(async () => {
     try {
-      console.log("Fetching summary data...");
+      console.log(
+        "Fetching summary data for:",
+        format(selectedDate, "MMMM yyyy")
+      );
 
       // Get centers count
       const { data: centers, error: centersError } = await supabase
-        .from("healthcare_centers") // Make sure this matches your table name exactly
+        .from("healthcare_centers")
         .select("*");
 
       if (centersError) {
@@ -299,158 +303,101 @@ const Dashboard = () => {
         centers?.filter((c) => c.is_treatment_area === true).length || 0;
       const controlCenters = totalCenters - treatmentCenters;
 
-      // Filter reports for the selected month only
+      // Filter reports for the selected month ONLY
       const selectedMonthStart = format(selectedDate, "yyyy-MM-01");
-      const selectedMonthEnd = format(endOfMonth(selectedDate), "yyyy-MM-dd");
+      console.log("Looking for reports in month:", selectedMonthStart);
 
-      console.log("Date range:", { selectedMonthStart, selectedMonthEnd });
-
-      // Get monthly reports for the selected month
-      // Note: Updating to match your actual table structure
-      const { data: monthlyReports, error } = await supabase
+      // Get ALL monthly reports first, then filter client-side for better debugging
+      const { data: allReports, error } = await supabase
         .from("monthly_reports")
-        .select(
-          `
-        id,
-        report_month,
-        fixed_doses,
-        outreach_doses,
-        total_doses,
-        center_id,
-        center_name
-      `
-        )
-        .eq("report_month", selectedMonthStart); // Use equals instead of range for exact month match
-
-      // Add debug logging
-      console.log("Query parameters:", {
-        selectedMonth: selectedMonthStart,
-        format: "yyyy-MM-01",
-      });
+        .select("*")
+        .not("center_name", "is", null)
+        .order("report_month", { ascending: false });
 
       if (error) {
         console.error("Error fetching reports:", error);
         throw error;
       }
 
-      console.log("Selected month reports:", monthlyReports?.length || 0);
+      console.log("Total reports available:", allReports?.length || 0);
+
+      // Filter for selected month
+      const monthlyReports =
+        allReports?.filter(
+          (report) => report.report_month === selectedMonthStart
+        ) || [];
+
+      console.log("Reports for selected month:", monthlyReports.length);
+      console.log("Sample report:", monthlyReports[0]);
 
       // Calculate vaccinations by center type for the selected month
       let totalVaccinations = 0;
       let treatmentVaccinations = 0;
       let controlVaccinations = 0;
 
-      // Create a map of center IDs to their treatment status for quick lookup
+      // Create a map of center IDs to their treatment status
       const centerTreatmentMap = new Map();
       centers?.forEach((center) => {
         centerTreatmentMap.set(center.id, center.is_treatment_area);
       });
 
-      if (monthlyReports && monthlyReports.length > 0) {
-        monthlyReports.forEach((report) => {
-          // Calculate total vaccinations for this report
-          let reportVaccinations = 0;
+      monthlyReports.forEach((report) => {
+        const reportVaccinations = report.total_doses || 0;
+        totalVaccinations += reportVaccinations;
 
-          // Use the most specific data available
-          if (typeof report.total_doses === "number") {
-            reportVaccinations = report.total_doses;
-          } else {
-            // Fall back to calculating from fixed and outreach doses
-            const fixedDoses =
-              typeof report.fixed_doses === "number" ? report.fixed_doses : 0;
-            const outreachDoses =
-              typeof report.outreach_doses === "number"
-                ? report.outreach_doses
-                : 0;
-            reportVaccinations = fixedDoses + outreachDoses;
-          }
+        const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
+        if (isTreatmentCenter === true) {
+          treatmentVaccinations += reportVaccinations;
+        } else {
+          controlVaccinations += reportVaccinations;
+        }
+      });
 
-          // Add to total vaccinations
-          totalVaccinations += reportVaccinations;
-
-          // Add to treatment or control based on center type
-          const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
-
-          if (isTreatmentCenter === true) {
-            treatmentVaccinations += reportVaccinations;
-          } else {
-            controlVaccinations += reportVaccinations;
-          }
-        });
-      }
-
-      // Log the results for debugging
-      console.log("Vaccination calculations:", {
+      console.log("Vaccination totals:", {
         total: totalVaccinations,
         treatment: treatmentVaccinations,
         control: controlVaccinations,
-        reportCount: monthlyReports?.length || 0,
       });
 
-      // Calculate previous month data and growth percentages
+      // Calculate previous month for growth
       const prevMonth = subMonths(selectedDate, 1);
-      const prevMonthStart = format(startOfMonth(prevMonth), "yyyy-MM-01");
-      const { data: prevMonthReports } = await supabase
-        .from("monthly_reports")
-        .select(
-          `id, report_month, fixed_doses, outreach_doses, total_doses, center_id`
-        )
-        .eq("report_month", prevMonthStart); // Use equals instead of range
+      const prevMonthStart = format(prevMonth, "yyyy-MM-01");
 
-      // Process previous month data
+      const prevMonthReports =
+        allReports?.filter(
+          (report) => report.report_month === prevMonthStart
+        ) || [];
+
       let prevTreatmentVaccinations = 0;
       let prevControlVaccinations = 0;
 
-      if (prevMonthReports && prevMonthReports.length > 0) {
-        prevMonthReports.forEach((report) => {
-          let reportVaccinations = 0;
+      prevMonthReports.forEach((report) => {
+        const reportVaccinations = report.total_doses || 0;
+        const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
 
-          if (typeof report.total_doses === "number") {
-            reportVaccinations = report.total_doses;
-          } else {
-            const fixedDoses =
-              typeof report.fixed_doses === "number" ? report.fixed_doses : 0;
-            const outreachDoses =
-              typeof report.outreach_doses === "number"
-                ? report.outreach_doses
-                : 0;
-            reportVaccinations = fixedDoses + outreachDoses;
-          }
-
-          const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
-
-          if (isTreatmentCenter === true) {
-            prevTreatmentVaccinations += reportVaccinations;
-          } else {
-            prevControlVaccinations += reportVaccinations;
-          }
-        });
-      }
-
-      // Calculate growth percentages
-      let treatmentGrowthPercent = 0;
-      let controlGrowthPercent = 0;
-
-      if (prevTreatmentVaccinations > 0) {
-        treatmentGrowthPercent =
-          ((treatmentVaccinations - prevTreatmentVaccinations) /
-            prevTreatmentVaccinations) *
-          100;
-      }
-
-      if (prevControlVaccinations > 0) {
-        controlGrowthPercent =
-          ((controlVaccinations - prevControlVaccinations) /
-            prevControlVaccinations) *
-          100;
-      }
-
-      console.log("Growth calculations:", {
-        treatmentGrowth: treatmentGrowthPercent.toFixed(1) + "%",
-        controlGrowth: controlGrowthPercent.toFixed(1) + "%",
+        if (isTreatmentCenter === true) {
+          prevTreatmentVaccinations += reportVaccinations;
+        } else {
+          prevControlVaccinations += reportVaccinations;
+        }
       });
 
-      // Update the state with the correct data
+      // Calculate growth percentages
+      const treatmentGrowthPercent =
+        prevTreatmentVaccinations > 0
+          ? ((treatmentVaccinations - prevTreatmentVaccinations) /
+              prevTreatmentVaccinations) *
+            100
+          : 0;
+
+      const controlGrowthPercent =
+        prevControlVaccinations > 0
+          ? ((controlVaccinations - prevControlVaccinations) /
+              prevControlVaccinations) *
+            100
+          : 0;
+
+      // Update the summary data state
       setSummaryData({
         totalCenters,
         treatmentCenters,
@@ -467,7 +414,7 @@ const Dashboard = () => {
       console.error("Error in fetchSummaryData:", error);
       toast.error("Failed to load summary data. Please try again.");
     }
-  }, [selectedDate]);
+  }, [selectedDate]); // Make sure selectedDate is in the dependency array
 
   useEffect(() => {
     fetchSummaryData();
@@ -1211,6 +1158,16 @@ const Dashboard = () => {
                     } rounded`}
                   >
                     Current Month
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log("Manual refresh triggered");
+                      fetchSummaryData();
+                      mutate(`monthly_reports`); // Refresh SWR cache
+                    }}
+                    className="ml-2 px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
+                  >
+                    🔄 Refresh Data
                   </button>
                 </div>
                 <Link
