@@ -544,7 +544,7 @@ const Dashboard = () => {
           console.log("Date-related fields found:", dateFields);
 
           // Count reports by month to see what data we actually have
-          const reportsByMonth = {};
+          const reportsByMonth: Record<string, number> = {};
           reportsData.forEach((report) => {
             if (report.report_month) {
               reportsByMonth[report.report_month] =
