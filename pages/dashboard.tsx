@@ -132,6 +132,45 @@ const DashboardSkeleton = () => (
   </div>
 );
 
+const AvailableMonthsSelector = ({ availableMonths, selectedDate, onMonthSelect }) => {
+  if (!availableMonths || availableMonths.length === 0) return null;
+  
+  return (
+    <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+      <h3 className="text-sm font-medium mb-2">Available months with data:</h3>
+      <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+        {availableMonths.map(month => {
+          try {
+            // Normalize date format before creating date object
+            const normalizedMonth = month.includes('T') ? month : month + 'T00:00:00';
+            const monthDate = new Date(normalizedMonth);
+            
+            // More flexible comparison
+            const isSelected = isSameMonth(selectedDate, monthDate);
+            
+            return (
+              <button
+                key={month}
+                onClick={() => onMonthSelect(monthDate)}
+                className={`px-3 py-1 text-sm rounded ${
+                  isSelected 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100'
+                }`}
+              >
+                {format(monthDate, "MMM yyyy")}
+              </button>
+            );
+          } catch (err) {
+            console.error(`Error parsing month: ${month}`, err);
+            return null; // Skip rendering this button if date parsing fails
+          }
+        })}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -155,21 +194,30 @@ const Dashboard = () => {
   );
 
   const { data: reportsData, error: reportsError } = useSWR(
-    [`monthly_reports`], // Remove dateRange dependency
+    "monthly_reports",
     async () => {
+      console.log("Fetching ALL monthly reports without filters");
       const { data, error } = await supabase
         .from("monthly_reports")
         .select("*")
-        .not("center_name", "is", null) // Only exclude bad data
         .order("report_month", { ascending: false })
-        .limit(1000); // Increase limit to get all data
+        .limit(1000);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching reports:", error);
+        throw new Error(`Error fetching reports: ${error.message}`);
+      }
+
+      // Debug what months are actually returned from the database
+      const monthCounts = {};
+      data.forEach(report => {
+        if (report.report_month) {
+          monthCounts[report.report_month] = (monthCounts[report.report_month] || 0) + 1;
+        }
+      });
+      console.log("ALL months found in database:", monthCounts);
+      
       return data;
-    },
-    {
-      revalidateOnFocus: true,
-      refreshInterval: 0, // Disable auto-refresh for now
     }
   );
 
@@ -322,10 +370,16 @@ const Dashboard = () => {
       console.log("Total reports available:", allReports?.length || 0);
 
       // Filter for selected month
-      const monthlyReports =
-        allReports?.filter(
-          (report) => report.report_month === selectedMonthStart
-        ) || [];
+      const monthlyReports = allReports?.filter(report => {
+        if (!report.report_month) return false;
+        
+        try {
+          return isSameMonth(report.report_month, selectedDate);
+        } catch (err) {
+          console.error("Date filtering error:", err);
+          return false;
+        }
+      }) || [];
 
       console.log("Reports for selected month:", monthlyReports.length);
       console.log("Sample report:", monthlyReports[0]);
@@ -439,6 +493,90 @@ const Dashboard = () => {
         if (reportsError) throw reportsError;
 
         if (isMounted && centersData && reportsData) {
+          // Move the debugging code HERE, inside the conditional check
+          console.log("=== DEBUGGING DATA ISSUES ===");
+
+          // Check data structure and formats
+          const sampleReports = reportsData.slice(0, 5);
+          console.log("Sample reports structure:", sampleReports);
+
+          // Check report_month formats
+          const reportMonthFormats = [
+            ...new Set(reportsData.map((r) => r.report_month).filter(Boolean)),
+          ].slice(0, 10);
+          console.log("Unique report_month formats found:", reportMonthFormats);
+
+          // Check if there are different date field names
+          const reportKeys =
+            reportsData.length > 0 ? Object.keys(reportsData[0]) : [];
+          console.log("Report object keys:", reportKeys);
+
+          // Check for any date-related fields
+          const dateFields = reportKeys.filter(
+            (key) =>
+              key.includes("date") ||
+              key.includes("month") ||
+              key.includes("time")
+          );
+          console.log("Date-related fields found:", dateFields);
+
+          // Count reports by month to see what data we actually have
+          const reportsByMonth = {};
+          reportsData.forEach((report) => {
+            if (report.report_month) {
+              reportsByMonth[report.report_month] =
+                (reportsByMonth[report.report_month] || 0) + 1;
+            }
+          });
+          console.log("Reports count by month:", reportsByMonth);
+
+          // Check if there are any null or undefined report_month values
+          const reportsWithoutMonth = reportsData.filter(
+            (r) => !r.report_month
+          );
+          console.log(
+            "Reports without report_month:",
+            reportsWithoutMonth.length
+          );
+
+          // Check the specific month you're looking for
+          const targetMonth = format(selectedDate, "yyyy-MM-01");
+          const targetMonthReports = reportsData.filter(
+            (r) => r.report_month === targetMonth
+          );
+          console.log(`Reports for ${targetMonth}:`, targetMonthReports.length);
+
+          if (targetMonthReports.length > 0) {
+            console.log(
+              "Sample report for target month:",
+              targetMonthReports[0]
+            );
+          }
+
+          // Check if there are variations in the month format
+          const possibleFormats = [
+            format(selectedDate, "yyyy-MM-01"),
+            format(selectedDate, "yyyy-MM"),
+            format(selectedDate, "MM/yyyy"),
+            format(selectedDate, "yyyy/MM"),
+            selectedDate.toISOString().substring(0, 10),
+            selectedDate.toISOString().substring(0, 7),
+          ];
+
+          console.log("Checking these possible date formats:");
+          possibleFormats.forEach((formatStr) => {
+            const matchingReports = reportsData.filter(
+              (r) =>
+                r.report_month === formatStr ||
+                (r.report_month && r.report_month.startsWith(formatStr))
+            );
+            console.log(
+              `Format "${formatStr}": ${matchingReports.length} reports`
+            );
+          });
+
+          console.log("=== END DEBUGGING ===");
+
           // Extract the data from centersData if it's in a Supabase response format
           const centers = Array.isArray(centersData)
             ? centersData
@@ -504,73 +642,55 @@ const Dashboard = () => {
             }
           });
 
-          const now = new Date();
+          // Fix: Generate monthly data based on selectedDate, not current date
           const monthlyData: Array<{
             month: string;
             fullLabel: string;
             doses: number;
           }> = [];
 
-          // Generate data for the past 6 months
-          for (let i = 5; i >= 0; i--) {
-            const targetDate = subMonths(now, i);
-            const targetMonthDate = format(targetDate, "yyyy-MM-01"); // Format for DB matching
+          // Generate data for 6 months centered around the selected month
+          // Show 2 months before selected, the selected month, and 3 months after (if they exist)
+          for (let i = -2; i <= 3; i++) {
+            const targetDate = addMonths(selectedDate, i);
+            const targetMonthDate = format(targetDate, "yyyy-MM-01");
 
-            // Filter reports for this specific month - fixing the filter condition
-            const monthDoses = reports
-              .filter((report) => {
-                if (!report.report_month) return false;
-                return report.report_month === targetMonthDate;
-              })
-              .reduce((sum, report) => {
-                // Ensure we handle both total_doses directly or calculate from components
-                let dosesValue = 0;
-                if (typeof report.total_doses === "number") {
-                  dosesValue = report.total_doses;
-                } else {
-                  const fixedDoses = report.fixed_doses || 0;
-                  const outreachDoses = report.outreach_doses || 0;
-                  dosesValue = fixedDoses + outreachDoses;
-                }
-                return sum + dosesValue;
-              }, 0);
-
-            const targetMonth = format(targetDate, "MMM");
-            const fullLabel = format(targetDate, "MMM yyyy");
-
-            // Add debug log to verify data is being added
             console.log(
-              `Adding month data: ${fullLabel}, doses: ${monthDoses}`
+              `Processing month for chart: ${format(
+                targetDate,
+                "MMM yyyy"
+              )}, looking for: ${targetMonthDate}`
+            );
+
+            // Filter reports for this specific month
+            const monthDoses = reports
+              .filter(report => {
+                if (!report.report_month) return false;
+                return isSameMonth(report.report_month, targetDate);
+              })
+              .reduce((sum, report) => sum + (report.total_doses || 0), 0);
+
+            console.log(
+              `Total doses for ${format(targetDate, "MMM yyyy")}: ${monthDoses}`
             );
 
             monthlyData.push({
-              month: targetMonth,
-              fullLabel: fullLabel,
+              month: format(targetDate, "MMM"),
+              fullLabel: format(targetDate, "MMMM yyyy"),
               doses: monthDoses,
             });
           }
-
-          // Add debug output for final monthly data
-          console.log(
-            "Final monthly data for chart:",
-            JSON.stringify(monthlyData)
-          );
 
           console.log("Monthly data for chart:", monthlyData);
 
           // Filter reports for the selected month only
           const selectedMonthReportsForStats = reports.filter((report) => {
             if (!report.report_month) return false;
-            try {
-              const reportDate = parseISO(report.report_month);
-              return (
-                format(reportDate, "yyyy-MM") ===
-                format(selectedDate, "yyyy-MM")
-              );
-            } catch (err) {
-              console.error("Error parsing date:", err);
-              return false;
-            }
+            // Don't use parseISO - report_month is already in "yyyy-MM-01" format
+            // Just compare the year-month portion directly
+            const reportYearMonth = report.report_month.substring(0, 7); // Gets "yyyy-MM"
+            const selectedYearMonth = format(selectedDate, "yyyy-MM");
+            return reportYearMonth === selectedYearMonth;
           });
 
           // Calculate doses for the selected month only
@@ -594,40 +714,28 @@ const Dashboard = () => {
               return centers;
             }, new Set()).size;
 
-          console.log("Original monthly data:", monthlyData);
-
           // Get the currently selected month format for filtering (not the current calendar month)
           const selectedYearMonth = format(selectedDate, "yyyy-MM");
           const selectedMonthFormatted = `${selectedYearMonth}-01`;
 
-          console.log("Looking for zero doses in month:", selectedYearMonth);
-
-          // Track centers with zero doses for the SELECTED month (not current month)
-          let treatmentCentersWithZeroDoses = 0;
-          let controlCentersWithZeroDoses = 0;
-          let totalTreatmentCenters = 0;
-          let totalControlCenters = 0;
-
-          // Count treatment vs control centers
-          centers.forEach((center) => {
-            if (center.is_treatment_area) {
-              totalTreatmentCenters++;
-            } else {
-              totalControlCenters++;
-            }
-          });
+          console.log(
+            "Calculating zero doses for month:",
+            selectedMonthFormatted
+          );
 
           // Create a map to track which centers have reports for the SELECTED month
           const centerReportsMap = new Map();
 
           // Process reports to find centers with doses in the selected month
           reports.forEach((report) => {
-            // Only consider selected month reports - exact match on yyyy-MM-01
+            // Only consider selected month reports - exact match
             if (report.report_month === selectedMonthFormatted) {
-              console.log(
-                `Found report for ${report.report_month} with doses: ${report.total_doses}`
+              const existingDoses = centerReportsMap.get(report.center_id) || 0;
+              const reportDoses = report.total_doses || 0;
+              centerReportsMap.set(
+                report.center_id,
+                existingDoses + reportDoses
               );
-              centerReportsMap.set(report.center_id, report.total_doses || 0);
             }
           });
 
@@ -635,16 +743,24 @@ const Dashboard = () => {
             `Found ${centerReportsMap.size} center reports for ${selectedMonthFormatted}`
           );
 
-          // Count centers with zero doses (reported zero or missing reports)
-          centers.forEach((center) => {
-            const doses = centerReportsMap.get(center.id);
-            // A center has zero doses if no report exists OR report shows zero doses
-            const hasZeroDoses = doses === 0 || doses === undefined;
+          // Count centers with zero doses by type
+          let treatmentCentersWithZeroDoses = 0;
+          let controlCentersWithZeroDoses = 0;
+          let totalTreatmentCenters = 0;
+          let totalControlCenters = 0;
 
-            if (hasZeroDoses) {
-              if (center.is_treatment_area) {
+          // Count all centers and those with zero doses
+          centers.forEach((center) => {
+            if (center.is_treatment_area) {
+              totalTreatmentCenters++;
+              const doses = centerReportsMap.get(center.id) || 0;
+              if (doses === 0) {
                 treatmentCentersWithZeroDoses++;
-              } else {
+              }
+            } else {
+              totalControlCenters++;
+              const doses = centerReportsMap.get(center.id) || 0;
+              if (doses === 0) {
                 controlCentersWithZeroDoses++;
               }
             }
@@ -668,228 +784,132 @@ const Dashboard = () => {
               ? (controlCentersWithZeroDoses / totalControlCenters) * 100
               : 0;
 
-          // Calculate changes
-          const treatmentChange =
-            stats.zeroDoses?.treatmentCenters.percent !== undefined
-              ? treatmentZeroPercent - stats.zeroDoses?.treatmentCenters.percent
-              : 0;
+          // Calculate dose distribution for the selected month
+          let treatmentFixedDoses = 0;
+          let treatmentOutreachDoses = 0;
+          let controlFixedDoses = 0;
+          let controlOutreachDoses = 0;
 
-          const controlChange =
-            stats.zeroDoses?.controlCenters.percent !== undefined
-              ? controlZeroPercent - stats.zeroDoses?.controlCenters.percent
-              : 0;
+          selectedMonthReportsForStats.forEach((report) => {
+            const center = centers.find((c) => c.id === report.center_id);
+            if (center) {
+              const fixedDoses = report.fixed_doses || 0;
+              const outreachDoses = report.outreach_doses || 0;
 
-          // Add these values to your stats
-          setStats((prevStats) => ({
-            ...prevStats,
+              if (center.is_treatment_area) {
+                treatmentFixedDoses += fixedDoses;
+                treatmentOutreachDoses += outreachDoses;
+              } else {
+                controlFixedDoses += fixedDoses;
+                controlOutreachDoses += outreachDoses;
+              }
+            }
+          });
+
+          const treatmentTotalDoses =
+            treatmentFixedDoses + treatmentOutreachDoses;
+          const controlTotalDoses = controlFixedDoses + controlOutreachDoses;
+
+          // Calculate performance breakdown
+          const performanceCenters = new Map();
+          selectedMonthReportsForStats.forEach((report) => {
+            const existing = performanceCenters.get(report.center_id) || 0;
+            performanceCenters.set(
+              report.center_id,
+              existing + (report.total_doses || 0)
+            );
+          });
+
+          const totalDosesForPerformance = Array.from(
+            performanceCenters.values()
+          ).reduce((sum, doses) => sum + doses, 0);
+          const onePercentThreshold = totalDosesForPerformance * 0.01;
+
+          let highPerformingCount = 0;
+          let highPerformingDoses = 0;
+          let lowPerformingCount = 0;
+          let lowPerformingDoses = 0;
+
+          performanceCenters.forEach((doses, centerId) => {
+            if (doses >= onePercentThreshold) {
+              highPerformingCount++;
+              highPerformingDoses += doses;
+            } else {
+              lowPerformingCount++;
+              lowPerformingDoses += doses;
+            }
+          });
+
+          // Update stats with all calculations at once
+          setStats({
+            totalCenters: centers.length,
+            totalDoses,
+            stockoutCenters,
+            areaStats,
+            monthlyData, // This now uses the corrected data
             zeroDoses: {
               treatmentCenters: {
                 count: treatmentCentersWithZeroDoses,
                 total: totalTreatmentCenters,
                 percent: treatmentZeroPercent,
-                change: treatmentChange,
+                change: 0,
               },
               controlCenters: {
                 count: controlCentersWithZeroDoses,
                 total: totalControlCenters,
                 percent: controlZeroPercent,
-                change: controlChange,
+                change: 0,
               },
             },
-          }));
-
-          // Calculate fixed versus outreach doses for the selected month
-          let fixedDosesTreatment = 0;
-          let outreachDosesTreatment = 0;
-          let fixedDosesControl = 0;
-          let outreachDosesControl = 0;
-
-          // Process reports to find fixed vs outreach doses distribution
-          reports.forEach((report) => {
-            // Only consider reports from the selected month
-            if (report.report_month === selectedMonthFormatted) {
-              const center = centers.find((c) => c.id === report.center_id);
-
-              // Get fixed and outreach doses from the report
-              const fixedDoses = report.fixed_doses || 0;
-              const outreachDoses = report.outreach_doses || 0;
-
-              if (center) {
-                if (center.is_treatment_area) {
-                  fixedDosesTreatment += fixedDoses;
-                  outreachDosesTreatment += outreachDoses;
-                } else {
-                  fixedDosesControl += fixedDoses;
-                  outreachDosesControl += outreachDoses;
-                }
-              }
-            }
-          });
-
-          // Calculate totals and percentages
-          const totalDosesTreatment =
-            fixedDosesTreatment + outreachDosesTreatment;
-          const totalDosesControl = fixedDosesControl + outreachDosesControl;
-
-          // Calculate percentages (avoid division by zero)
-          const fixedPercentTreatment =
-            totalDosesTreatment > 0
-              ? (fixedDosesTreatment / totalDosesTreatment) * 100
-              : 0;
-
-          const outreachPercentTreatment =
-            totalDosesTreatment > 0
-              ? (outreachDosesTreatment / totalDosesTreatment) * 100
-              : 0;
-
-          const fixedPercentControl =
-            totalDosesControl > 0
-              ? (fixedDosesControl / totalDosesControl) * 100
-              : 0;
-
-          const outreachPercentControl =
-            totalDosesControl > 0
-              ? (outreachDosesControl / totalDosesControl) * 100
-              : 0;
-
-          console.log("Dose distribution:", {
-            treatment: {
-              fixed: fixedDosesTreatment,
-              outreach: outreachDosesTreatment,
-              total: totalDosesTreatment,
-              fixedPercent: fixedPercentTreatment,
-              outreachPercent: outreachPercentTreatment,
-            },
-            control: {
-              fixed: fixedDosesControl,
-              outreach: outreachDosesControl,
-              total: totalDosesControl,
-              fixedPercent: fixedPercentControl,
-              outreachPercent: outreachPercentControl,
-            },
-          });
-
-          setStats((prevStats) => ({
-            ...prevStats,
             doseDistribution: {
               treatment: {
-                fixed: fixedDosesTreatment,
-                outreach: outreachDosesTreatment,
-                total: totalDosesTreatment,
-                fixedPercent: fixedPercentTreatment,
-                outreachPercent: outreachPercentTreatment,
+                fixed: treatmentFixedDoses,
+                outreach: treatmentOutreachDoses,
+                total: treatmentTotalDoses,
+                fixedPercent:
+                  treatmentTotalDoses > 0
+                    ? (treatmentFixedDoses / treatmentTotalDoses) * 100
+                    : 0,
+                outreachPercent:
+                  treatmentTotalDoses > 0
+                    ? (treatmentOutreachDoses / treatmentTotalDoses) * 100
+                    : 0,
               },
               control: {
-                fixed: fixedDosesControl,
-                outreach: outreachDosesControl,
-                total: totalDosesControl,
-                fixedPercent: fixedPercentControl,
-                outreachPercent: outreachPercentControl,
+                fixed: controlFixedDoses,
+                outreach: controlOutreachDoses,
+                total: controlTotalDoses,
+                fixedPercent:
+                  controlTotalDoses > 0
+                    ? (controlFixedDoses / controlTotalDoses) * 100
+                    : 0,
+                outreachPercent:
+                  controlTotalDoses > 0
+                    ? (controlOutreachDoses / controlTotalDoses) * 100
+                    : 0,
               },
             },
-          }));
-
-          // Calculate high-performing and low-performing centers for the selected month
-          // First, create a map of centers and their total doses for the selected month
-          const centerDosesMap = new Map<string, number>();
-
-          // Aggregate total doses by center
-          reports.forEach((report) => {
-            if (report.report_month === selectedMonthFormatted) {
-              const centerId = report.center_id;
-              const doses = report.total_doses || 0;
-
-              const currentDoses = centerDosesMap.get(centerId) || 0;
-              centerDosesMap.set(centerId, currentDoses + doses);
-            }
-          });
-
-          // Convert to array for sorting
-          const centerDosesArray = Array.from(centerDosesMap.entries()).map(
-            ([centerId, doses]) => ({
-              centerId,
-              doses,
-            })
-          );
-
-          // Sort by doses in descending order
-          centerDosesArray.sort((a, b) => b.doses - a.doses);
-
-          // Calculate the total doses for this month
-          const totalMonthDoses = centerDosesArray.reduce(
-            (sum, item) => sum + item.doses,
-            0
-          );
-
-          // Calculate the 1% threshold
-          const onePercentThreshold = totalMonthDoses * 0.01;
-
-          // Find high-performing centers (cumulative 80% of doses)
-          const highPerformingCenters: string[] = [];
-          let cumulativeDoses = 0;
-          let highPerformingTotalDoses = 0;
-
-          for (const center of centerDosesArray) {
-            if (cumulativeDoses < totalMonthDoses * 0.8) {
-              highPerformingCenters.push(center.centerId);
-              highPerformingTotalDoses += center.doses;
-              cumulativeDoses += center.doses;
-            } else {
-              break;
-            }
-          }
-
-          // Find low-performing centers (< 1% of doses each)
-          const lowPerformingCenters = centerDosesArray
-            .filter((center) => center.doses < onePercentThreshold)
-            .map((center) => center.centerId);
-
-          // Calculate total doses from low-performing centers
-          const lowPerformingTotalDoses = centerDosesArray
-            .filter((center) => center.doses < onePercentThreshold)
-            .reduce((sum, center) => sum + center.doses, 0);
-
-          console.log("Performance breakdown:", {
-            highPerforming: {
-              count: highPerformingCenters.length,
-              totalDoses: highPerformingTotalDoses,
-              percentOfAllDoses:
-                (highPerformingTotalDoses / totalMonthDoses) * 100,
-            },
-            lowPerforming: {
-              count: lowPerformingCenters.length,
-              totalDoses: lowPerformingTotalDoses,
-              percentOfAllDoses:
-                (lowPerformingTotalDoses / totalMonthDoses) * 100,
-            },
-            totalCenters: centerDosesArray.length,
-            totalDoses: totalMonthDoses,
-          });
-
-          // Update stats state with performance breakdown
-          setStats((prevStats) => ({
-            ...prevStats,
             performanceBreakdown: {
               highPerforming: {
-                count: highPerformingCenters.length,
-                totalDoses: highPerformingTotalDoses,
+                count: highPerformingCount,
+                totalDoses: highPerformingDoses,
                 percentOfAllDoses:
-                  totalMonthDoses > 0
-                    ? (highPerformingTotalDoses / totalMonthDoses) * 100
+                  totalDosesForPerformance > 0
+                    ? (highPerformingDoses / totalDosesForPerformance) * 100
                     : 0,
               },
               lowPerforming: {
-                count: lowPerformingCenters.length,
-                totalDoses: lowPerformingTotalDoses,
+                count: lowPerformingCount,
+                totalDoses: lowPerformingDoses,
                 percentOfAllDoses:
-                  totalMonthDoses > 0
-                    ? (lowPerformingTotalDoses / totalMonthDoses) * 100
+                  totalDosesForPerformance > 0
+                    ? (lowPerformingDoses / totalDosesForPerformance) * 100
                     : 0,
               },
-              totalCenters: centerDosesArray.length,
-              totalDoses: totalMonthDoses,
+              totalCenters: performanceCenters.size,
+              totalDoses: totalDosesForPerformance,
             },
-          }));
+          });
 
           setStateStats(stateStats);
         }
@@ -910,7 +930,7 @@ const Dashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [dateRange, reportsData, reportsError]);
+  }, [selectedDate, reportsData, centersData, reportsError, centersError]);
 
   useEffect(() => {
     console.log("Stats monthly data:", stats.monthlyData);
@@ -958,103 +978,11 @@ const Dashboard = () => {
   }, []);
 
   const generateMonthlyData = () => {
-    const monthlyData = [];
-
-    // Center the selected month in the chart
-    // Show 2 months before and 3 months after the selected month
-    for (let i = -2; i <= 3; i++) {
-      const targetDate = addMonths(selectedDate, i);
-      const targetMonthString = format(targetDate, "yyyy-MM");
-
-      // Check if we're trying to show future months beyond now
-      const now = new Date();
-      const isInFuture = targetDate > now;
-
-      // Debug log
-      console.log(
-        `Processing month: ${format(
-          targetDate,
-          "MMM yyyy"
-        )}, Future month? ${isInFuture}`
-      );
-
-      // Filter reports for this specific month - with more flexible matching
-      const monthReports =
-        !isInFuture && reportsData
-          ? reportsData.filter((report) => {
-              // Skip if no date info
-              if (!report.report_month && !report.report_date) {
-                return false;
-              }
-
-              // Try different date formats for matching
-              try {
-                const reportDate = report.report_month
-                  ? parseISO(report.report_month)
-                  : parseISO(report.report_date);
-
-                const reportMonthString = format(reportDate, "yyyy-MM");
-                const matched = reportMonthString === targetMonthString;
-
-                if (matched) {
-                  console.log(
-                    `Found match for ${targetMonthString}: Report date: ${report.report_month}`
-                  );
-                }
-
-                return matched;
-              } catch (err) {
-                console.error("Error parsing report date:", err);
-                return false;
-              }
-            })
-          : [];
-
-      // Log how many reports found for this month
-      console.log(
-        `Found ${monthReports?.length || 0} reports for ${format(
-          targetDate,
-          "MMM yyyy"
-        )}`
-      );
-
-      // Calculate total doses for this month - FIX: Use proper null/array check
-      const totalDoses =
-        monthReports && monthReports.length > 0
-          ? monthReports.reduce((sum, report) => {
-              // Handle different ways doses might be stored
-              let dosesValue = 0;
-
-              if (typeof report.total_doses === "number") {
-                dosesValue = report.total_doses;
-              } else if (report.fixed_doses || report.outreach_doses) {
-                dosesValue =
-                  (report.fixed_doses || 0) + (report.outreach_doses || 0);
-              }
-
-              return sum + dosesValue;
-            }, 0)
-          : 0;
-
-      console.log(
-        `Total doses for ${format(targetDate, "MMM yyyy")}: ${totalDoses}`
-      );
-
-      // Add month data, highlighting the selected month
-      const isSelectedMonth = i === 0;
-
-      monthlyData.push({
-        month: format(targetDate, "MMM"),
-        fullLabel: format(targetDate, "MMMM yyyy"),
-        doses: totalDoses,
-        isSelected: isSelectedMonth,
-      });
-    }
-
-    // Debug output
-    console.log("Final monthly data:", monthlyData);
-
-    return monthlyData;
+    // Just return the monthly data from stats, which is already calculated correctly
+    return stats.monthlyData.map((data, index) => ({
+      ...data,
+      isSelected: index === 2, // The selected month is always at index 2 (middle of the 6 months)
+    }));
   };
 
   if (error) {
@@ -1067,6 +995,22 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  // Calculate available months for the selector
+  const availableMonths = [...new Set(
+    reportsData?.map(r => r.report_month).filter(Boolean)
+  )]
+    .sort((a, b) => {
+      try {
+        // Parse dates for proper sorting
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateB.getTime() - dateA.getTime(); // Sort newer months first
+      } catch (err) {
+        console.error("Date sorting error:", err);
+        return 0;
+      }
+    });
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1178,6 +1122,14 @@ const Dashboard = () => {
                 </Link>
               </div>
             </div>
+
+            {/* Month Selector - Newly Added */}
+            <AvailableMonthsSelector 
+              availableMonths={availableMonths}
+              selectedDate={selectedDate}
+              onMonthSelect={setSelectedDate}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <DashboardCard
                 title="Total Centers"
@@ -1678,3 +1630,52 @@ export async function getServerSideProps({ req }: GetServerSidePropsContext) {
 }
 
 export default Dashboard;
+
+// Replace your existing isSameMonth function with this more robust version
+function isSameMonth(date1: string | Date, date2: string | Date): boolean {
+  try {
+    // Handle special case for string formats
+    if (typeof date1 === 'string' && typeof date2 === 'string' || 
+        typeof date1 === 'string' && date2 instanceof Date) {
+      
+      // Direct string comparison for YYYY-MM-DD format
+      if (typeof date1 === 'string' && date1.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const yearMonth1 = date1.substring(0, 7); // Extract YYYY-MM part
+        
+        if (date2 instanceof Date) {
+          const yearMonth2 = date2.getFullYear() + '-' + 
+                            String(date2.getMonth() + 1).padStart(2, '0');
+          return yearMonth1 === yearMonth2;
+        } else {
+          // date2 is also a string
+          const yearMonth2 = date2.substring(0, 7); // Extract YYYY-MM part
+          return yearMonth1 === yearMonth2;
+        }
+      }
+      
+      // Try to handle MM/YYYY or MM-YYYY format
+      const regex = /(\d{1,2})[\/-](\d{4})/;
+      const match = typeof date1 === 'string' ? date1.match(regex) : null;
+      
+      if (match) {
+        const month = parseInt(match[1]) - 1; // 0-based month
+        const year = parseInt(match[2]);
+        
+        if (date2 instanceof Date) {
+          return year === date2.getFullYear() && month === date2.getMonth();
+        }
+      }
+    }
+    
+    // Standard comparison using Date objects
+    const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
+    const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
+    
+    // Compare year and month only
+    return d1.getFullYear() === d2.getFullYear() && 
+           d1.getMonth() === d2.getMonth();
+  } catch (err) {
+    console.error("Date comparison error:", err, "date1:", date1, "date2:", date2);
+    return false;
+  }
+}

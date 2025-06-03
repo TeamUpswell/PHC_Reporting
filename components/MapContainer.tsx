@@ -41,10 +41,29 @@ const MapUpdater = ({ center }: { center: [number, number] }) => {
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return;
+
+    // Check if map container exists and is properly initialized
+    if (!map.getContainer() || !map.getContainer().offsetParent) {
+      return;
+    }
+
     map.setView(center);
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
+
+    // Use a longer delay and check if map is still valid
+    const timeoutId = setTimeout(() => {
+      try {
+        // Check if map is still mounted before invalidating
+        if (map.getContainer() && map.getContainer().offsetParent) {
+          map.invalidateSize();
+        }
+      } catch (error) {
+        console.warn("Map invalidateSize failed:", error);
+      }
+    }, 200); // Increased delay
+
+    // Cleanup timeout on unmount
+    return () => clearTimeout(timeoutId);
   }, [map, center]);
 
   return null;
