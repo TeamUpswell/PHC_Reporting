@@ -132,40 +132,54 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-const AvailableMonthsSelector = ({ availableMonths, selectedDate, onMonthSelect }) => {
+// New dropdown component to replace AvailableMonthsSelector
+const MonthDropdownSelector = ({
+  availableMonths,
+  selectedDate,
+  onMonthSelect,
+}: AvailableMonthsSelectorProps) => {
   if (!availableMonths || availableMonths.length === 0) return null;
-  
+
   return (
-    <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-      <h3 className="text-sm font-medium mb-2">Available months with data:</h3>
-      <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-        {availableMonths.map(month => {
+    <div className="inline-block relative w-64">
+      <select
+        className="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline"
+        value={format(selectedDate, "yyyy-MM-01")}
+        onChange={(e) => {
           try {
-            // Normalize date format before creating date object
-            const normalizedMonth = month.includes('T') ? month : month + 'T00:00:00';
+            const date = new Date(e.target.value + "T00:00:00");
+            onMonthSelect(date);
+          } catch (err) {
+            console.error("Error selecting month:", err);
+          }
+        }}
+      >
+        {availableMonths.map((month) => {
+          try {
+            const normalizedMonth = month.includes("T")
+              ? month
+              : month + "T00:00:00";
             const monthDate = new Date(normalizedMonth);
-            
-            // More flexible comparison
-            const isSelected = isSameMonth(selectedDate, monthDate);
-            
+
             return (
-              <button
-                key={month}
-                onClick={() => onMonthSelect(monthDate)}
-                className={`px-3 py-1 text-sm rounded ${
-                  isSelected 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-white border border-blue-300 text-blue-600 hover:bg-blue-100'
-                }`}
-              >
-                {format(monthDate, "MMM yyyy")}
-              </button>
+              <option key={month} value={month}>
+                {format(monthDate, "MMMM yyyy")}
+              </option>
             );
           } catch (err) {
             console.error(`Error parsing month: ${month}`, err);
-            return null; // Skip rendering this button if date parsing fails
+            return null;
           }
         })}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+        <svg
+          className="fill-current h-4 w-4"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+        </svg>
       </div>
     </div>
   );
@@ -210,13 +224,14 @@ const Dashboard = () => {
 
       // Debug what months are actually returned from the database
       const monthCounts = {};
-      data.forEach(report => {
+      data.forEach((report) => {
         if (report.report_month) {
-          monthCounts[report.report_month] = (monthCounts[report.report_month] || 0) + 1;
+          monthCounts[report.report_month] =
+            (monthCounts[report.report_month] || 0) + 1;
         }
       });
       console.log("ALL months found in database:", monthCounts);
-      
+
       return data;
     }
   );
@@ -370,16 +385,17 @@ const Dashboard = () => {
       console.log("Total reports available:", allReports?.length || 0);
 
       // Filter for selected month
-      const monthlyReports = allReports?.filter(report => {
-        if (!report.report_month) return false;
-        
-        try {
-          return isSameMonth(report.report_month, selectedDate);
-        } catch (err) {
-          console.error("Date filtering error:", err);
-          return false;
-        }
-      }) || [];
+      const monthlyReports =
+        allReports?.filter((report) => {
+          if (!report.report_month) return false;
+
+          try {
+            return isSameMonth(report.report_month, selectedDate);
+          } catch (err) {
+            console.error("Date filtering error:", err);
+            return false;
+          }
+        }) || [];
 
       console.log("Reports for selected month:", monthlyReports.length);
       console.log("Sample report:", monthlyReports[0]);
@@ -664,7 +680,7 @@ const Dashboard = () => {
 
             // Filter reports for this specific month
             const monthDoses = reports
-              .filter(report => {
+              .filter((report) => {
                 if (!report.report_month) return false;
                 return isSameMonth(report.report_month, targetDate);
               })
@@ -997,20 +1013,19 @@ const Dashboard = () => {
   }
 
   // Calculate available months for the selector
-  const availableMonths = [...new Set(
-    reportsData?.map(r => r.report_month).filter(Boolean)
-  )]
-    .sort((a, b) => {
-      try {
-        // Parse dates for proper sorting
-        const dateA = new Date(a);
-        const dateB = new Date(b);
-        return dateB.getTime() - dateA.getTime(); // Sort newer months first
-      } catch (err) {
-        console.error("Date sorting error:", err);
-        return 0;
-      }
-    });
+  const availableMonths = [
+    ...new Set(reportsData?.map((r) => r.report_month).filter(Boolean)),
+  ].sort((a, b) => {
+    try {
+      // Parse dates for proper sorting
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB.getTime() - dateA.getTime(); // Sort newer months first
+    } catch (err) {
+      console.error("Date sorting error:", err);
+      return 0;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1027,93 +1042,24 @@ const Dashboard = () => {
                 Dashboard
               </h1>
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      const newDate = subMonths(selectedDate, 1);
-                      setSelectedDate(newDate);
-                      setDateRange({
-                        start: startOfMonth(newDate),
-                        end: endOfMonth(newDate),
-                      });
-                    }}
-                    className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-                    aria-label="Previous month"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"
-                      />
-                    </svg>
-                  </button>
-                  <span className="text-lg font-medium px-2">
-                    {format(selectedDate, "MMMM yyyy")}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const now = new Date();
-                      const newDate = addMonths(selectedDate, 1);
-                      // Don't allow selection of future months
-                      if (newDate <= now) {
-                        setSelectedDate(newDate);
-                        setDateRange({
-                          start: startOfMonth(newDate),
-                          end: endOfMonth(newDate),
-                        });
-                      }
-                    }}
-                    className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-                    aria-label="Next month"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6-6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => {
-                      const now = new Date();
-                      setSelectedDate(now);
-                      setDateRange({
-                        start: startOfMonth(now),
-                        end: endOfMonth(now),
-                      });
-                    }}
-                    className={`ml-2 px-3 py-1 text-sm ${
-                      format(selectedDate, "yyyy-MM") ===
-                      format(new Date(), "yyyy-MM")
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    } rounded`}
-                  >
-                    Current Month
-                  </button>
-                  <button
-                    onClick={() => {
-                      console.log("Manual refresh triggered");
-                      fetchSummaryData();
-                      mutate(`monthly_reports`); // Refresh SWR cache
-                    }}
-                    className="ml-2 px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
-                  >
-                    🔄 Refresh Data
-                  </button>
-                </div>
+                {/* Replace the previous month navigation with the dropdown */}
+                <MonthDropdownSelector
+                  availableMonths={availableMonths}
+                  selectedDate={selectedDate}
+                  onMonthSelect={setSelectedDate}
+                />
+
+                <button
+                  onClick={() => {
+                    console.log("Manual refresh triggered");
+                    fetchSummaryData();
+                    mutate(`monthly_reports`); // Refresh SWR cache
+                  }}
+                  className="ml-2 px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
+                >
+                  🔄 Refresh Data
+                </button>
+
                 <Link
                   href="/add-center"
                   className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
@@ -1122,13 +1068,6 @@ const Dashboard = () => {
                 </Link>
               </div>
             </div>
-
-            {/* Month Selector - Newly Added */}
-            <AvailableMonthsSelector 
-              availableMonths={availableMonths}
-              selectedDate={selectedDate}
-              onMonthSelect={setSelectedDate}
-            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <DashboardCard
@@ -1635,16 +1574,19 @@ export default Dashboard;
 function isSameMonth(date1: string | Date, date2: string | Date): boolean {
   try {
     // Handle special case for string formats
-    if (typeof date1 === 'string' && typeof date2 === 'string' || 
-        typeof date1 === 'string' && date2 instanceof Date) {
-      
+    if (
+      (typeof date1 === "string" && typeof date2 === "string") ||
+      (typeof date1 === "string" && date2 instanceof Date)
+    ) {
       // Direct string comparison for YYYY-MM-DD format
-      if (typeof date1 === 'string' && date1.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date1 === "string" && date1.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const yearMonth1 = date1.substring(0, 7); // Extract YYYY-MM part
-        
+
         if (date2 instanceof Date) {
-          const yearMonth2 = date2.getFullYear() + '-' + 
-                            String(date2.getMonth() + 1).padStart(2, '0');
+          const yearMonth2 =
+            date2.getFullYear() +
+            "-" +
+            String(date2.getMonth() + 1).padStart(2, "0");
           return yearMonth1 === yearMonth2;
         } else {
           // date2 is also a string
@@ -1652,30 +1594,38 @@ function isSameMonth(date1: string | Date, date2: string | Date): boolean {
           return yearMonth1 === yearMonth2;
         }
       }
-      
+
       // Try to handle MM/YYYY or MM-YYYY format
       const regex = /(\d{1,2})[\/-](\d{4})/;
-      const match = typeof date1 === 'string' ? date1.match(regex) : null;
-      
+      const match = typeof date1 === "string" ? date1.match(regex) : null;
+
       if (match) {
         const month = parseInt(match[1]) - 1; // 0-based month
         const year = parseInt(match[2]);
-        
+
         if (date2 instanceof Date) {
           return year === date2.getFullYear() && month === date2.getMonth();
         }
       }
     }
-    
+
     // Standard comparison using Date objects
-    const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
-    const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
-    
+    const d1 = typeof date1 === "string" ? new Date(date1) : date1;
+    const d2 = typeof date2 === "string" ? new Date(date2) : date2;
+
     // Compare year and month only
-    return d1.getFullYear() === d2.getFullYear() && 
-           d1.getMonth() === d2.getMonth();
+    return (
+      d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth()
+    );
   } catch (err) {
-    console.error("Date comparison error:", err, "date1:", date1, "date2:", date2);
+    console.error(
+      "Date comparison error:",
+      err,
+      "date1:",
+      date1,
+      "date2:",
+      date2
+    );
     return false;
   }
 }
