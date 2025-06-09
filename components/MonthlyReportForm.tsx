@@ -103,7 +103,7 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
-      report_month: `${selectedMonth}-01`, // Set to first day of month
+      report_month: `${selectedMonth}-01`, // Ensure -01 suffix
     }));
   }, [selectedMonth]);
 

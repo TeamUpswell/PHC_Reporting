@@ -18,6 +18,7 @@
     "chart.js": "^4.4.9",
     "date-fns": "^2.30.0",
     "file-saver": "^2.0.5",
+    "is-number": "^7.0.0",
     "leaflet": "^1.9.4",
     "next": "^13.5.4",
     "papaparse": "^5.5.2",

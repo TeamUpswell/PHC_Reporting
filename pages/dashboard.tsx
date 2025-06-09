@@ -139,13 +139,17 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-// New dropdown component to replace AvailableMonthsSelector
+// Replace your MonthDropdownSelector with this improved version
 const MonthDropdownSelector = ({
   availableMonths,
   selectedDate,
   onMonthSelect,
 }: AvailableMonthsSelectorProps) => {
   if (!availableMonths || availableMonths.length === 0) return null;
+
+  console.log("Available months in dropdown:", availableMonths);
+  console.log("Currently selected date:", selectedDate);
+  console.log("Selected date formatted:", format(selectedDate, "yyyy-MM-01"));
 
   return (
     <div className="inline-block relative w-64">
@@ -154,7 +158,12 @@ const MonthDropdownSelector = ({
         value={format(selectedDate, "yyyy-MM-01")}
         onChange={(e) => {
           try {
-            const date = new Date(e.target.value + "T00:00:00");
+            console.log("Selected month value:", e.target.value);
+            // Parse the selected month (which should be in YYYY-MM-01 format)
+            const selectedMonth = e.target.value;
+            // Create a date object for the first day of that month
+            const date = new Date(selectedMonth + "T00:00:00");
+            console.log("Parsed date:", date);
             onMonthSelect(date);
           } catch (err) {
             console.error("Error selecting month:", err);
@@ -163,11 +172,8 @@ const MonthDropdownSelector = ({
       >
         {availableMonths.map((month) => {
           try {
-            const normalizedMonth = month.includes("T")
-              ? month
-              : month + "T00:00:00";
-            const monthDate = new Date(normalizedMonth);
-
+            // month should already be in YYYY-MM-01 format
+            const monthDate = new Date(month + "T00:00:00");
             return (
               <option key={month} value={month}>
                 {format(monthDate, "MMMM yyyy")}
@@ -194,7 +200,10 @@ const MonthDropdownSelector = ({
 
 const Dashboard = () => {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    // Default to the most recent month with data (May 2025)
+    return new Date("2025-05-01T00:00:00");
+  });
   const [dateRange, setDateRange] = useState({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date()),
@@ -222,7 +231,7 @@ const Dashboard = () => {
         .from("monthly_reports")
         .select("*")
         .order("report_month", { ascending: false })
-        .limit(1000);
+        .limit(1000); // Remove the .not("center_name", "is", null) filter
 
       if (error) {
         console.error("Error fetching reports:", error);
@@ -351,6 +360,8 @@ const Dashboard = () => {
     }
   };
 
+  // Replace the fetchSummaryData function with this corrected version:
+
   const fetchSummaryData = useCallback(async () => {
     try {
       console.log(
@@ -381,8 +392,8 @@ const Dashboard = () => {
       const { data: allReports, error } = await supabase
         .from("monthly_reports")
         .select("*")
-        .not("center_name", "is", null)
-        .order("report_month", { ascending: false });
+        .order("report_month", { ascending: false })
+        .limit(1000); // Remove the .not("center_name", "is", null) filter
 
       if (error) {
         console.error("Error fetching reports:", error);
@@ -396,12 +407,9 @@ const Dashboard = () => {
         allReports?.filter((report) => {
           if (!report.report_month) return false;
 
-          try {
-            return isSameMonth(report.report_month, selectedDate);
-          } catch (err) {
-            console.error("Date filtering error:", err);
-            return false;
-          }
+          // Direct string comparison - more reliable
+          const selectedMonthFormatted = format(selectedDate, "yyyy-MM-01");
+          return report.report_month === selectedMonthFormatted;
         }) || [];
 
       console.log("Reports for selected month:", monthlyReports.length);
@@ -412,17 +420,38 @@ const Dashboard = () => {
       let treatmentVaccinations = 0;
       let controlVaccinations = 0;
 
+      // DECLARE THESE VARIABLES HERE - THIS WAS THE MISSING PIECE
+      let prevTreatmentVaccinations = 0;
+      let prevControlVaccinations = 0;
+      let treatmentGrowthPercent = 0;
+      let controlGrowthPercent = 0;
+
       // Create a map of center IDs to their treatment status
       const centerTreatmentMap = new Map();
       centers?.forEach((center) => {
         centerTreatmentMap.set(center.id, center.is_treatment_area);
       });
 
-      monthlyReports.forEach((report) => {
+      // Debug the calculation
+      console.log("Calculating doses for", monthlyReports.length, "reports");
+      console.log("Center treatment map size:", centerTreatmentMap.size);
+
+      monthlyReports.forEach((report, index) => {
         const reportVaccinations = report.total_doses || 0;
         totalVaccinations += reportVaccinations;
 
         const isTreatmentCenter = centerTreatmentMap.get(report.center_id);
+
+        // Add debugging for first few reports
+        if (index < 5) {
+          console.log(`Report ${index}:`, {
+            center_id: report.center_id,
+            total_doses: report.total_doses,
+            is_treatment: isTreatmentCenter,
+            report_month: report.report_month,
+          });
+        }
+
         if (isTreatmentCenter === true) {
           treatmentVaccinations += reportVaccinations;
         } else {
@@ -430,10 +459,11 @@ const Dashboard = () => {
         }
       });
 
-      console.log("Vaccination totals:", {
+      console.log("Final vaccination totals:", {
         total: totalVaccinations,
         treatment: treatmentVaccinations,
         control: controlVaccinations,
+        reportsProcessed: monthlyReports.length,
       });
 
       // Calculate previous month for growth
@@ -444,9 +474,6 @@ const Dashboard = () => {
         allReports?.filter(
           (report) => report.report_month === prevMonthStart
         ) || [];
-
-      let prevTreatmentVaccinations = 0;
-      let prevControlVaccinations = 0;
 
       prevMonthReports.forEach((report) => {
         const reportVaccinations = report.total_doses || 0;
@@ -460,14 +487,14 @@ const Dashboard = () => {
       });
 
       // Calculate growth percentages
-      const treatmentGrowthPercent =
+      treatmentGrowthPercent =
         prevTreatmentVaccinations > 0
           ? ((treatmentVaccinations - prevTreatmentVaccinations) /
               prevTreatmentVaccinations) *
             100
           : 0;
 
-      const controlGrowthPercent =
+      controlGrowthPercent =
         prevControlVaccinations > 0
           ? ((controlVaccinations - prevControlVaccinations) /
               prevControlVaccinations) *
@@ -491,7 +518,7 @@ const Dashboard = () => {
       console.error("Error in fetchSummaryData:", error);
       toast.error("Failed to load summary data. Please try again.");
     }
-  }, [selectedDate]); // Make sure selectedDate is in the dependency array
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchSummaryData();
@@ -624,17 +651,28 @@ const Dashboard = () => {
           // After fetching reports, filter them for the selected month only:
           const selectedMonthReports = reports.filter((report) => {
             if (!report.report_month) return false;
-            try {
-              const reportDate = parseISO(report.report_month);
-              return (
-                format(reportDate, "yyyy-MM") ===
-                format(selectedDate, "yyyy-MM")
+
+            // Extract YYYY-MM from both the report and selected date
+            const reportMonth = report.report_month.substring(0, 7); // Get YYYY-MM
+            const selectedMonth = format(selectedDate, "yyyy-MM");
+
+            const matches = reportMonth === selectedMonth;
+
+            if (matches) {
+              console.log(
+                `✅ Report matches: ${report.report_month} -> ${reportMonth} === ${selectedMonth}`
               );
-            } catch (err) {
-              console.error("Error parsing date:", err);
-              return false;
             }
+
+            return matches;
           });
+
+          console.log(
+            `Found ${selectedMonthReports.length} reports for ${format(
+              selectedDate,
+              "yyyy-MM"
+            )}`
+          );
 
           // Initialize stateStats with zeroes for all states
           const stateStats: Record<string, number> = {};
@@ -1034,6 +1072,49 @@ const Dashboard = () => {
     }
   });
 
+  useEffect(() => {
+    if (reportsData && reportsData.length > 0) {
+      console.log("=== MONTH SELECTION DEBUGGING ===");
+      console.log("Selected date:", selectedDate);
+      console.log(
+        "Selected date formatted as YYYY-MM:",
+        format(selectedDate, "yyyy-MM")
+      );
+      console.log(
+        "Selected date formatted as YYYY-MM-01:",
+        format(selectedDate, "yyyy-MM-01")
+      );
+
+      // Show a sample of what we're comparing
+      if (reportsData.length > 0) {
+        console.log("Sample report dates:");
+        reportsData.slice(0, 5).forEach((report) => {
+          const reportMonth = report.report_month?.substring(0, 7);
+          const selectedMonth = format(selectedDate, "yyyy-MM");
+          console.log(
+            `  Report: ${
+              report.report_month
+            } -> ${reportMonth} | Selected: ${selectedMonth} | Match: ${
+              reportMonth === selectedMonth
+            }`
+          );
+        });
+      }
+
+      // Check if the selected month exists in the available months
+      const selectedMonthFormatted = format(selectedDate, "yyyy-MM-01");
+      const isSelectedMonthAvailable = availableMonths.includes(
+        selectedMonthFormatted
+      );
+      console.log(
+        "Is selected month available in dropdown?",
+        isSelectedMonthAvailable
+      );
+      console.log("Available months:", availableMonths);
+      console.log("=== END MONTH DEBUGGING ===");
+    }
+  }, [reportsData, selectedDate, availableMonths]);
+
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="container mx-auto px-4 py-8">
@@ -1073,6 +1154,26 @@ const Dashboard = () => {
                 >
                   Add New Center
                 </Link>
+
+                <button
+                  onClick={() => {
+                    console.log("Testing with January 2025");
+                    setSelectedDate(new Date("2025-01-01T00:00:00"));
+                  }}
+                  className="ml-2 px-3 py-1 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded"
+                >
+                  Test Jan 2025
+                </button>
+
+                <button
+                  onClick={() => {
+                    console.log("Testing with October 2024");
+                    setSelectedDate(new Date("2024-10-01T00:00:00"));
+                  }}
+                  className="ml-2 px-3 py-1 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded"
+                >
+                  Test Oct 2024
+                </button>
               </div>
             </div>
 
@@ -1397,7 +1498,7 @@ const Dashboard = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                          d="M13 7h8m0 0v8m0-8l-8 8-4 4-6 6"
                         />
                       </svg>
                     ) : summaryData.controlGrowthPercent < 0 ? (
@@ -1567,72 +1668,52 @@ const Dashboard = () => {
   );
 };
 
-import { GetServerSidePropsContext } from "next";
-
-export async function getServerSideProps({ req }: GetServerSidePropsContext) {
-  // We'll let the client-side ProtectedRoute component handle authentication
-  // This simplifies the server-side logic
-  return { props: {} };
-}
-
 export default Dashboard;
 
 // Replace your existing isSameMonth function with this more robust version
 function isSameMonth(date1: string | Date, date2: string | Date): boolean {
   try {
-    // Handle special case for string formats
-    if (
-      (typeof date1 === "string" && typeof date2 === "string") ||
-      (typeof date1 === "string" && date2 instanceof Date)
-    ) {
-      // Direct string comparison for YYYY-MM-DD format
-      if (typeof date1 === "string" && date1.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const yearMonth1 = date1.substring(0, 7); // Extract YYYY-MM part
+    let date1Str: string;
+    let date2Str: string;
 
-        if (date2 instanceof Date) {
-          const yearMonth2 =
-            date2.getFullYear() +
-            "-" +
-            String(date2.getMonth() + 1).padStart(2, "0");
-          return yearMonth1 === yearMonth2;
-        } else {
-          // date2 is also a string
-          const yearMonth2 = date2.substring(0, 7); // Extract YYYY-MM part
-          return yearMonth1 === yearMonth2;
-        }
+    // Convert to YYYY-MM format for comparison
+    if (typeof date1 === "string") {
+      // Handle different string formats
+      if (date1.includes("T")) {
+        date1Str = date1.substring(0, 7); // YYYY-MM
+      } else if (date1.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        date1Str = date1.substring(0, 7); // YYYY-MM from YYYY-MM-DD
+      } else if (date1.match(/^\d{4}-\d{2}$/)) {
+        date1Str = date1; // Already YYYY-MM
+      } else {
+        // Try to parse as date
+        const parsed1 = new Date(date1);
+        date1Str = format(parsed1, "yyyy-MM");
       }
-
-      // Try to handle MM/YYYY or MM-YYYY format
-      const regex = /(\d{1,2})[\/-](\d{4})/;
-      const match = typeof date1 === "string" ? date1.match(regex) : null;
-
-      if (match) {
-        const month = parseInt(match[1]) - 1; // 0-based month
-        const year = parseInt(match[2]);
-
-        if (date2 instanceof Date) {
-          return year === date2.getFullYear() && month === date2.getMonth();
-        }
-      }
+    } else {
+      date1Str = format(date1, "yyyy-MM");
     }
 
-    // Standard comparison using Date objects
-    const d1 = typeof date1 === "string" ? new Date(date1) : date1;
-    const d2 = typeof date2 === "string" ? new Date(date2) : date2;
+    if (typeof date2 === "string") {
+      if (date2.includes("T")) {
+        date2Str = date2.substring(0, 7);
+      } else if (date2.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        date2Str = date2.substring(0, 7);
+      } else if (date2.match(/^\d{4}-\d{2}$/)) {
+        date2Str = date2;
+      } else {
+        const parsed2 = new Date(date2);
+        date2Str = format(parsed2, "yyyy-MM");
+      }
+    } else {
+      date2Str = format(date2, "yyyy-MM");
+    }
 
-    // Compare year and month only
-    return (
-      d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth()
-    );
-  } catch (err) {
-    console.error(
-      "Date comparison error:",
-      err,
-      "date1:",
-      date1,
-      "date2:",
-      date2
-    );
+    return date1Str === date2Str;
+  } catch (error) {
+    console.error("Error in isSameMonth:", error, { date1, date2 });
     return false;
   }
 }
+
+// END OF FILE - Nothing should come after this
