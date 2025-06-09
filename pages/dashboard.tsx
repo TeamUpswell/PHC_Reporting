@@ -4,7 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import {
   format,
   subMonths,
@@ -147,10 +147,6 @@ const MonthDropdownSelector = ({
 }: AvailableMonthsSelectorProps) => {
   if (!availableMonths || availableMonths.length === 0) return null;
 
-  console.log("Available months in dropdown:", availableMonths);
-  console.log("Currently selected date:", selectedDate);
-  console.log("Selected date formatted:", format(selectedDate, "yyyy-MM-01"));
-
   return (
     <div className="inline-block relative w-64">
       <select
@@ -158,12 +154,8 @@ const MonthDropdownSelector = ({
         value={format(selectedDate, "yyyy-MM-01")}
         onChange={(e) => {
           try {
-            console.log("Selected month value:", e.target.value);
-            // Parse the selected month (which should be in YYYY-MM-01 format)
             const selectedMonth = e.target.value;
-            // Create a date object for the first day of that month
             const date = new Date(selectedMonth + "T00:00:00");
-            console.log("Parsed date:", date);
             onMonthSelect(date);
           } catch (err) {
             console.error("Error selecting month:", err);
@@ -172,7 +164,6 @@ const MonthDropdownSelector = ({
       >
         {availableMonths.map((month) => {
           try {
-            // month should already be in YYYY-MM-01 format
             const monthDate = new Date(month + "T00:00:00");
             return (
               <option key={month} value={month}>
@@ -993,10 +984,6 @@ const Dashboard = () => {
     };
   }, [selectedDate, reportsData, centersData, reportsError, centersError]);
 
-  useEffect(() => {
-    console.log("Stats monthly data:", stats.monthlyData);
-  }, [stats.monthlyData]);
-
   const filteredCenters = useMemo(() => {
     if (!centers || !Array.isArray(centers)) {
       return [];
@@ -1072,49 +1059,6 @@ const Dashboard = () => {
     }
   });
 
-  useEffect(() => {
-    if (reportsData && reportsData.length > 0) {
-      console.log("=== MONTH SELECTION DEBUGGING ===");
-      console.log("Selected date:", selectedDate);
-      console.log(
-        "Selected date formatted as YYYY-MM:",
-        format(selectedDate, "yyyy-MM")
-      );
-      console.log(
-        "Selected date formatted as YYYY-MM-01:",
-        format(selectedDate, "yyyy-MM-01")
-      );
-
-      // Show a sample of what we're comparing
-      if (reportsData.length > 0) {
-        console.log("Sample report dates:");
-        reportsData.slice(0, 5).forEach((report) => {
-          const reportMonth = report.report_month?.substring(0, 7);
-          const selectedMonth = format(selectedDate, "yyyy-MM");
-          console.log(
-            `  Report: ${
-              report.report_month
-            } -> ${reportMonth} | Selected: ${selectedMonth} | Match: ${
-              reportMonth === selectedMonth
-            }`
-          );
-        });
-      }
-
-      // Check if the selected month exists in the available months
-      const selectedMonthFormatted = format(selectedDate, "yyyy-MM-01");
-      const isSelectedMonthAvailable = availableMonths.includes(
-        selectedMonthFormatted
-      );
-      console.log(
-        "Is selected month available in dropdown?",
-        isSelectedMonthAvailable
-      );
-      console.log("Available months:", availableMonths);
-      console.log("=== END MONTH DEBUGGING ===");
-    }
-  }, [reportsData, selectedDate, availableMonths]);
-
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="container mx-auto px-4 py-8">
@@ -1137,43 +1081,12 @@ const Dashboard = () => {
                   onMonthSelect={setSelectedDate}
                 />
 
-                <button
-                  onClick={() => {
-                    console.log("Manual refresh triggered");
-                    fetchSummaryData();
-                    mutate(`monthly_reports`); // Refresh SWR cache
-                  }}
-                  className="ml-2 px-3 py-1 text-sm bg-green-600 text-white hover:bg-green-700 rounded"
-                >
-                  🔄 Refresh Data
-                </button>
-
                 <Link
                   href="/add-center"
                   className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center"
                 >
                   Add New Center
                 </Link>
-
-                <button
-                  onClick={() => {
-                    console.log("Testing with January 2025");
-                    setSelectedDate(new Date("2025-01-01T00:00:00"));
-                  }}
-                  className="ml-2 px-3 py-1 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded"
-                >
-                  Test Jan 2025
-                </button>
-
-                <button
-                  onClick={() => {
-                    console.log("Testing with October 2024");
-                    setSelectedDate(new Date("2024-10-01T00:00:00"));
-                  }}
-                  className="ml-2 px-3 py-1 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded"
-                >
-                  Test Oct 2024
-                </button>
               </div>
             </div>
 
@@ -1229,7 +1142,6 @@ const Dashboard = () => {
 
             {/* Zero Doses Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* Treatment Areas Zero Doses Card */}
               <DashboardCard
                 title="Treatment Centers with Zero Doses"
                 value={`${
@@ -1255,7 +1167,6 @@ const Dashboard = () => {
                     : null
                 }
               />
-              {/* Control Areas Zero Doses Card */}
               <DashboardCard
                 title="Control Centers with Zero Doses"
                 value={`${
@@ -1574,9 +1485,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="mb-8">
-              {/* Two Column Layout - Chart on Left, Stats on Right */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                {/* Left Column - Vaccination Chart */}
                 <div className="lg:col-span-2">
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">
@@ -1595,9 +1504,7 @@ const Dashboard = () => {
                     </ErrorBoundary>
                   </div>
                 </div>
-                {/* Right Column - Stats and Links */}
                 <div className="space-y-8">
-                  {/* Doses by State Card */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">
                       Doses by State ({format(selectedDate, "MMMM yyyy")})
@@ -1614,7 +1521,6 @@ const Dashboard = () => {
                       ))}
                     </div>
                   </div>
-                  {/* Quick Links Card */}
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-xl font-bold mb-4">Quick Links</h2>
                     <div className="space-y-2">
@@ -1640,7 +1546,6 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
-              {/* Map - Full Width - Now below other elements */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold mb-4">
                   Healthcare Centers Map
