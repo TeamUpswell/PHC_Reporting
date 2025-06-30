@@ -488,6 +488,100 @@ export default function BulkEntry() {
     }
   };
 
+  // Add this function to your bulk upload component:
+
+  const removeDuplicates = (csvData: any[]) => {
+    const uniqueRecords = new Map();
+    const duplicates = [];
+
+    csvData.forEach((row, index) => {
+      // Create a unique key based on center name and month/year
+      const key = `${row["PHC Name"]}-${row["Month"]}-${row["Year"]}`;
+
+      if (uniqueRecords.has(key)) {
+        console.warn(`Duplicate found at row ${index + 2}:`, row); // +2 because CSV is 1-indexed + header
+        duplicates.push({
+          row: index + 2,
+          centerName: row["PHC Name"],
+          month: row["Month"],
+          year: row["Year"],
+        });
+      } else {
+        uniqueRecords.set(key, { ...row, originalRow: index + 2 });
+      }
+    });
+
+    if (duplicates.length > 0) {
+      console.log(`Found ${duplicates.length} duplicates:`, duplicates);
+      alert(
+        `Warning: Found ${duplicates.length} duplicate entries. Only the first occurrence of each will be processed.`
+      );
+    }
+
+    return {
+      cleanData: Array.from(uniqueRecords.values()),
+      duplicates,
+      originalCount: csvData.length,
+      uniqueCount: uniqueRecords.size,
+    };
+  };
+
+  // Then in your upload processing:
+  const processCSVUpload = async (csvData: any[]) => {
+    try {
+      // Remove duplicates first
+      const { cleanData, duplicates, originalCount, uniqueCount } =
+        removeDuplicates(csvData);
+
+      if (duplicates.length > 0) {
+        console.log(`Removed ${originalCount - uniqueCount} duplicate records`);
+      }
+
+      // Process the clean data
+      const processedData = cleanData.map((row) => {
+        // Your existing CSV processing logic here
+        return {
+          center_id: getCenterIdFromName(row["PHC Name"]), // You'll need this lookup
+          report_month: `${row["Year"]}-${getMonthNumber(row["Month"])}-01`,
+          stock_beginning: parseInt(row["Stock Beginning"]) || 0,
+          stock_end: parseInt(row["Stock End"]) || 0,
+          fixed_doses: parseInt(row["Fixed Doses"]) || 0,
+          outreach_doses: parseInt(row["Outreach Doses"]) || 0,
+          total_doses:
+            (parseInt(row["Fixed Doses"]) || 0) +
+            (parseInt(row["Outreach Doses"]) || 0),
+          in_stock: row["In Stock"]?.toLowerCase() === "yes",
+          shortage: row["Shortage"]?.toLowerCase() === "yes",
+          shortage_response: row["Shortage Response"] || null,
+          outreach: row["Outreach"]?.toLowerCase() === "yes",
+          misinformation: row["Misinformation"] || null,
+          dhis_check: row["DHIS Check"]?.toLowerCase() === "yes",
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      // Upload to Supabase
+      const { error } = await supabase
+        .from("monthly_reports")
+        .upsert(processedData, {
+          onConflict: "center_id,report_month",
+          ignoreDuplicates: false,
+        });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        processed: uniqueCount,
+        duplicatesRemoved: originalCount - uniqueCount,
+      };
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
   // Render the all fields table
   const renderAllFieldsTable = () => {
     if (!centers || centers.length === 0) return null;
