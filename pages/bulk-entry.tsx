@@ -36,6 +36,14 @@ type NumericField =
   | "outreach_doses"
   | "total_doses";
 
+// Add this interface near the top of your file with other type definitions:
+interface DuplicateRecord {
+  row: number;
+  centerName: string;
+  month: string;
+  year: string;
+}
+
 export default function BulkEntry() {
   const router = useRouter();
   const { user } = useAuth(); // Add this line to get the authenticated user
@@ -488,11 +496,37 @@ export default function BulkEntry() {
     }
   };
 
-  // Add this function to your bulk upload component:
+  // Helper to convert month name to number
+  const getMonthNumber = (monthName: string): string => {
+    const months: Record<string, string> = {
+      January: "01",
+      February: "02",
+      March: "03",
+      April: "04",
+      May: "05",
+      June: "06",
+      July: "07",
+      August: "08",
+      September: "09",
+      October: "10",
+      November: "11",
+      December: "12",
+    };
+    return months[monthName] || "01";
+  };
 
+  // Helper to lookup center ID from name
+  const getCenterIdFromName = (centerName: string): string => {
+    // You'll need to implement this based on your centers data
+    // This should return the UUID of the center matching the name
+    const center = centers.find((c) => c.name === centerName);
+    return center?.id || "";
+  };
+
+  // Add this function to your bulk upload component:
   const removeDuplicates = (csvData: any[]) => {
     const uniqueRecords = new Map();
-    const duplicates = [];
+    const duplicates: DuplicateRecord[] = [];
 
     csvData.forEach((row, index) => {
       // Create a unique key based on center name and month/year
@@ -556,7 +590,7 @@ export default function BulkEntry() {
           outreach: row["Outreach"]?.toLowerCase() === "yes",
           misinformation: row["Misinformation"] || null,
           dhis_check: row["DHIS Check"]?.toLowerCase() === "yes",
-          created_by: user.id,
+          created_by: user?.id,
           created_at: new Date().toISOString(),
         };
       });
