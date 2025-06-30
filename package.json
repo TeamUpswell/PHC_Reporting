@@ -20,7 +20,7 @@
     "file-saver": "^2.0.5",
     "is-number": "^7.0.0",
     "leaflet": "^1.9.4",
-    "next": "^13.5.4",
+    "next": "^15.3.4",
     "papaparse": "^5.5.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
